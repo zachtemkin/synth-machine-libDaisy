@@ -1,0 +1,103 @@
+# Build outputs
+build/
+*.o
+*.obj
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+*.d
+*.dSYM/
+*.exe
+*.app
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+# DaisyLib specific
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+*.backup
+
+# Dependencies (if you add them later)
+vendor/
+deps/
+third_party/
+
+# Project specific
+# Uncomment if you have these directories
+# lib/
+# include/
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Coverage reports
+*.gcov
+*.gcda
+*.gcno
+
+# Profiling data
+*.prof
+
+# Backup files
+*~
+*.orig
+*.rej
+
+# Archive files
+*.tar
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# Documentation build
+docs/_build/
+docs/build/
+
+# CMake (if you switch to it later)
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile.cmake
+*.cmake
+!CMakeLists.txt
+
+# Meson (if you switch to it later)
+meson-logs/
+meson-private/
+builddir/
