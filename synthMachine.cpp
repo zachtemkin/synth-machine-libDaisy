@@ -1,3 +1,4 @@
+#include "daisy.h"
 #include "daisy_patch.h"
 #include "daisy_seed.h"
 #include "daisysp.h"
@@ -28,8 +29,8 @@ using namespace daisy::seed;
  * - A4: Release Time (10ms to 2s)
  *
  * MIDI Output:
- * - USB MIDI (existing)
- * - UART MIDI over pins 29 (TX) and 30 (RX) for USB-C breakout
+ * - USB MIDI over built-in USB port (pins 29 D-, 30 D+ are the USB FS data
+ * pair)
  */
 
 // Pin definitions - must be defined outside the class
@@ -38,20 +39,14 @@ static constexpr Pin COL_PINS[6] = {seed::D4, seed::D5, seed::D6,
 static constexpr Pin ROW_PINS[3] = {seed::D1, seed::D2, seed::D3};
 static constexpr Pin C4_PIN = seed::D10;
 
-// MIDI UART pins for USB-C breakout
-static constexpr Pin MIDI_TX_PIN = seed::D29; // Pin 29 for MIDI TX
-static constexpr Pin MIDI_RX_PIN = seed::D30; // Pin 30 for MIDI RX
-// Note: These pins are defined for future UART MIDI implementation
-// Currently using USB MIDI for reliable bidirectional communication
+// MIDI USB pins - Pins 29 (D-) and 30 (D+) are the USB FS data pair
+// connected to STM32H7's internal USB OTG FS PHY
 
 class SynthMachine {
 private:
   // Hardware configuration
   DaisySeed hw;
   MidiUsbHandler midi; // USB MIDI handler
-
-  // TODO: Add UART MIDI support for pins 29/30 when Daisy supports it
-  // For now, using only USB MIDI which works reliably
 
   // Audio parameters
   static const int NUM_VOICES = 13;
@@ -225,10 +220,6 @@ public:
     midi_cfg.transport_config.tx_retry_count = 3;
     midi.Init(midi_cfg);
     System::Delay(100);
-
-    // TODO: Initialize MIDI UART interface for pins 29/30 when supported
-    // This would allow MIDI out over the USB-C breakout pins
-    // For now, only USB MIDI is available
   }
 
   // Function to read potentiometer and map to ADSR range
@@ -337,6 +328,9 @@ public:
   }
 
   void Update() {
+    // Listen for MIDI events (required for USB MIDI to work properly)
+    midi.Listen();
+
     // Update ADSR parameters from potentiometers
     updateADSRParameters();
 
@@ -484,7 +478,7 @@ public:
     // Debug: note ON event - voice is now active
     // The audio output will confirm this is working
 
-    // Send MIDI Note On message via USB
+    // Send MIDI Note On message via external USB port
     if (note >= 0 && note < 13) {
       // Note On: 0x90 = NoteOn channel 1, note number, velocity
       uint8_t note_on[] = {0x90 | 0x00, (uint8_t)midiNoteNumbers[note], 127};
@@ -501,7 +495,7 @@ public:
       }
     }
 
-    // Send MIDI Note Off message via USB
+    // Send MIDI Note Off message via external USB port
     if (note >= 0 && note < 13) {
       // Note Off: 0x80 = NoteOff channel 1, note number, velocity 0
       uint8_t note_off[] = {0x80 | 0x00, (uint8_t)midiNoteNumbers[note], 0};
