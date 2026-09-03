@@ -216,7 +216,7 @@ for i, sig in enumerate(["L+", "L-", "R+", "R-"]):
     add("FB%d" % (i + 1), "Device:FerriteBead", "600R@100MHz", FB_FP,
         {"1": "SPK_" + sig, "2": "SPKF_" + sig}, sch=(150 + i * 8, 96, 90), pcb=(72.0, 46.0 + 4 * i, 0))
     add("C%d" % (i + 2), "Device:C", "220p", CS_FP,
-        {"1": "SPKF_" + sig, "2": "GND"}, sch=(150 + i * 8, 106, 0), pcb=(84.0, 46.0 + 4 * i, 0))
+        {"1": "SPKF_" + sig, "2": "GND"}, sch=(150 + i * 8, 106, 0), pcb=(63.5, 46.0 + 4 * i, 0))
 JST_FP = "Connector_JST:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical"
 add("J5", "Connector_Generic:Conn_01x02", "Speaker L (JST-PH)", JST_FP,
     {"1": "SPKF_L+", "2": "SPKF_L-"}, sch=(190, 96, 0), pcb=(72.0, 66.0, 0))
@@ -231,9 +231,9 @@ add("J6", "Connector_Generic:Conn_01x02", "Speaker R (JST-PH)", JST_FP,
 add("J7", "Connector_Audio:AudioJack3_SwitchTR", "Headphones 3.5mm (CUI SJ1-3515N)",
     "Connector_Audio:Jack_3.5mm_CUI_SJ1-3515N_Horizontal",
     {"S": "GND", "T": "HP_L", "R": "HP_R", "TN": "HP_DET", "RN": None},
-    sch=(20, 130, 0), pcb=(120.0, 155.8, 90))
+    sch=(20, 130, 0), pcb=(6.1, 76.0, 0))
 add("R3", "Device:R", "100k", R_FP, {"1": "+3V3", "2": "HP_DET"}, sch=(36, 126, 0), pcb=(64.0, 84.0, 0))
-add("R4", "Device:R", "10k", R_SMD, {"1": "HP_L", "2": "GND"}, sch=(42, 126, 0), pcb=(100.0, 157.0, 0))
+add("R4", "Device:R", "10k", R_SMD, {"1": "HP_L", "2": "GND"}, sch=(42, 126, 0), pcb=(30.0, 84.0, 0))
 add("R5", "Device:R", "10k", R_FP, {"1": "HP_DET", "2": "Q1_B"}, sch=(52, 126, 0), pcb=(78.0, 80.0, 0))
 add("R6", "Device:R", "10k", R_FP, {"1": "MUTE", "2": "Q1_B"}, sch=(58, 126, 0), pcb=(78.0, 84.0, 0))
 add("Q1", "Transistor_BJT:Q_NPN_EBC", "2N3904", "Package_TO_SOT_THT:TO-92_Inline",
@@ -247,21 +247,40 @@ add("Q1", "Transistor_BJT:Q_NPN_EBC", "2N3904", "Package_TO_SOT_THT:TO-92_Inline
 add("U2", "SynthMachine:TPA6138A2", "TPA6138A2PWR", "Package_SO:TSSOP-14_4.4x5mm_P0.65mm",
     {"14": "GND", "13": "HP_INL", "1": "GND", "2": "HP_INR", "5": "HP_MUTE", "11": None, "9": "+3V3",
      "12": "HP_L", "3": "HP_R", "8": "HP_CP", "7": "HP_CN", "6": "HP_VSS", "4": "GND", "10": "GND"},
-    sch=(146, 128, 0), pcb=(100.0, 150.0, 0),
+    sch=(146, 128, 0), pcb=(23.0, 84.0, 0),
     desc="TI TPA6138A2 40mW DirectPath stereo headphone amplifier, TSSOP-14, 3.3V")
-for ch, y_s, col in (("L", 122, 80.0), ("R", 134, 86.0)):
+HP_COL = {"L": 21.0, "R": 25.0}
+for ch, y_s in (("L", 122), ("R", 134)):
+    col = HP_COL[ch]
+    # input caps stand vertical (rot 270 -> pad 1 on top) so the audio traces can drop straight in
     add("C%d" % (7 if ch == "L" else 8), "Device:C", "1u", C_SMD, {"1": "AUDIO_" + ch, "2": "HP_IN%s_C" % ch},
-        sch=(108, y_s, 90), pcb=(col, 146.0, 0))
+        sch=(108, y_s, 90), pcb=(col, 65.5, 270))
     add("R%d" % (8 if ch == "L" else 10), "Device:R", "10k", R_SMD, {"1": "HP_IN%s_C" % ch, "2": "HP_IN" + ch},
-        sch=(116, y_s, 90), pcb=(col, 149.5, 0))
+        sch=(116, y_s, 90), pcb=(col, 68.5, 0))
     add("R%d" % (9 if ch == "L" else 11), "Device:R", "10k", R_SMD, {"1": "HP_IN" + ch, "2": "HP_" + ch},
-        sch=(124, y_s, 90), pcb=(col, 153.0, 0))
+        sch=(124, y_s, 90), pcb=(col, 71.0, 0))
     add("C%d" % (9 if ch == "L" else 10), "Device:C", "47p", C_SMD, {"1": "HP_IN" + ch, "2": "HP_" + ch},
-        sch=(132, y_s, 90), pcb=(col, 156.5, 0))
-add("C11", "Device:C", "1u", C_SMD, {"1": "HP_CP", "2": "HP_CN"}, sch=(166, 122, 90), pcb=(92.0, 146.0, 0))
-add("C12", "Device:C", "1u", C_SMD, {"1": "HP_VSS", "2": "GND"}, sch=(172, 122, 90), pcb=(92.0, 149.5, 0))
-add("C13", "Device:C", "2u2", C_SMD, {"1": "+3V3", "2": "GND"}, sch=(178, 122, 90), pcb=(92.0, 153.0, 0))
-add("R12", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "HP_MUTE"}, sch=(184, 122, 90), pcb=(92.0, 156.5, 0))
+        sch=(132, y_s, 90), pcb=(col, 73.5, 0))
+add("C11", "Device:C", "1u", C_SMD, {"1": "HP_CP", "2": "HP_CN"}, sch=(166, 122, 90), pcb=(21.0, 76.0, 0))
+add("C12", "Device:C", "1u", C_SMD, {"1": "HP_VSS", "2": "GND"}, sch=(172, 122, 90), pcb=(25.0, 76.0, 0))
+add("C13", "Device:C", "2u2", C_SMD, {"1": "+3V3", "2": "GND"}, sch=(178, 122, 90), pcb=(21.0, 78.5, 0))
+add("R12", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "HP_MUTE"}, sch=(184, 122, 90), pcb=(25.0, 78.5, 0))
+
+# Hand-routed nets, locked before the autorouter runs (see route.py).  Endpoints are
+# either (x, y) in mm or ("REF", "pad") resolved to that pad's centre.
+# Seed line out (U1.18/19, left column) -> amp header on F.Cu, nested L shapes;
+# same pins -> headphone amp input caps on B.Cu, via up next to the cap.
+PREROUTES = [
+    ("AUDIO_L", "F.Cu", [("U1", "18"), (86.0, None), (86.0, "A1:6"), ("A1", "6")]),
+    ("AUDIO_R", "F.Cu", [("U1", "19"), (84.5, None), (84.5, "A1:3"), ("A1", "3")]),
+    ("AUDIO_L", "B.Cu", [("U1", "18"), (87.5, None), (87.5, 60.7), (21.0, 60.7), (21.0, 62.4)]),
+    ("AUDIO_L", "VIA", (21.0, 62.4)),
+    ("AUDIO_L", "F.Cu", [(21.0, 62.4), ("C7", "1")]),
+    ("AUDIO_R", "B.Cu", [("U1", "19"), (88.5, None), (88.5, 61.5), (25.0, 61.5), (25.0, 62.9)]),
+    ("AUDIO_R", "VIA", (25.0, 62.9)),
+    ("AUDIO_R", "F.Cu", [(25.0, 62.9), ("C8", "1")]),
+]
+PREROUTE_WIDTH = 0.3
 
 # --- Panel LED (wired, panel-mount 3 mm LED in the small hole) -----------------------
 add("R7", "Device:R", "1k", R_FP, {"1": "LED", "2": "LED_A"}, sch=(90, 128, 0), pcb=(100.0, 70.0, 0))
@@ -739,8 +758,8 @@ def write_pcb(root_uuid):
     text("AMP (Adafruit 987)", 72, 3, 1.2)
     text("SPK L", 72, 71, 1.0)
     text("SPK R", 82, 71, 1.0)
-    text("HP", 120, 141, 1.2)
-    text("HP AMP", 86, 159.5, 1.0)
+    text("HP", 10, 67.5, 1.2)
+    text("HP AMP", 30.5, 80.0, 1.0)
     text("LED", LED_XY[0] + 6, LED_XY[1] + 1.3, 1.0)
     text("EXP", 14, 152, 1.0)
 

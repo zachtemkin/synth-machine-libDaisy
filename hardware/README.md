@@ -44,9 +44,13 @@ GND and the 3V3 rails use the default width; the pours carry their current.
 Freerouting needs Java 25; a portable JRE from adoptium.net works without
 installing anything.
 
-The autorouter does not know audio from scan lines, so before ordering it is
-worth a manual pass on the short AUDIO_L/R and HP_* runs (keep them away from
-the USB pair and the matrix columns) and on the +5V feed to the amp header.
+The audio nets are not left to the autorouter. `PREROUTES` in `gen_kicad.py`
+describes AUDIO_L/R by hand: Seed line out to the amp header as two nested L
+shapes on the front, and the same pins to the headphone amp on the back with a
+via next to each input cap. `route.py` lays these down locked before
+Freerouting runs, so the autorouter routes everything else around them, and it
+checks afterwards that all 18 locked items survived. The headphone amp and jack
+sit on the left edge in the gap between BTN1 and C#4 so those runs stay short.
 
 ## Geometry
 
@@ -75,7 +79,7 @@ switch are wired panel-mount parts on headers rather than board-mounted.
 | Amp | A1 = Adafruit #987 on a 1x9 header | Pin 1 = G ... 9 = VDD (from Adafruit's Eagle file). Inputs single-ended from the Seed line out, L-/R- to GND. |
 | Speakers | J4 1x4 header, FB1..FB4 + C2..C5, J5/J6 JST-PH | Amp outputs exist only on the breakout's screw terminals, so 4 short wires go to J4. Each line then passes a ferrite bead with 220 pF to ground (the MAX98306 datasheet EMI filter) before the JST-PH speaker plugs. |
 | Headphone amp | U2 TI TPA6138A2PWR (TSSOP-14), C7/C8 1u in, R8..R11 10k, C9/C10 47p, C11/C12 1u charge pump, C13 2u2, R12 100k | DirectPath amp: ground-centred output, no output caps, 40 mW into 32 ohm from the Seed's 3V3 rail. Inverting stage, gain -1 (change R9/R11 for more). All passives 0805. Mute is active-low, pulled up by R12; D14 (HP_MUTE) can mute it. DigiKey 296-28248-1-ND, about $0.75. |
-| Headphone jack | J7 3.5 mm switched jack (CUI SJ1-3515N), R3 100k, R4 10k, R5/R6 10k, Q1 2N3904 | Tip/ring from U2. The jack's normally-closed TN contact is the plug detect: held near 0 V by the amp output (and R4) with nothing inserted, pulled to 3V3 when a plug opens it. Q1 then pulls the speaker amp's SD low, muting the speakers. D11 (MUTE) can do the same from firmware, D13 reads HP_DET. |
+| Headphone jack | J7 3.5 mm switched jack (CUI SJ1-3515N) on the left edge, R3 100k, R4 10k, R5/R6 10k, Q1 2N3904 | Tip/ring from U2. The jack's normally-closed TN contact is the plug detect: held near 0 V by the amp output (and R4) with nothing inserted, pulled to 3V3 when a plug opens it. Q1 then pulls the speaker amp's SD low, muting the speakers. D11 (MUTE) can do the same from firmware, D13 reads HP_DET. |
 | LED | R7 1k from D12, J9 header | Wired 3 mm panel LED in the small hole above the E/F gap. |
 | Expansion | J8 1x12 | HP_MUTE, D26, D27, A5..A8, HP_DET, MUTE, 3V3, 5V, GND. |
 | Mounting | H1..H6 M3 | Corner holes 8 mm in from the edges plus two mid-span. Match these to your enclosure. |
@@ -115,8 +119,8 @@ a - output with no ground reference. Two things follow:
    R4 alone holds it; check with a meter before trusting the auto-mute.
 4. **Connector edges.** J1 is placed so the footprint's "PCB Edge" line sits on
    the board edge (the shell overhangs about 1 mm, which is normal). The
-   headphone jack has no such marker; check its nose against the edge with the
-   real part.
+   headphone jack (left edge, between BTN1 and C#4) has no such marker; check
+   its nose against the edge with the real part.
 5. **USB power budget.** Two 4 ohm speakers at full tilt can draw more than a
    USB-A port's 500 mA. A USB-C supply or a 1.5 A-capable port is fine; a laptop
    USB-A port will brown out at high volume.

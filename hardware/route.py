@@ -24,6 +24,7 @@ import argparse, os, subprocess, sys, time, uuid
 HERE = os.path.dirname(os.path.abspath(__file__))
 BOARD = os.path.join(HERE, "synth_machine.kicad_pcb")
 POURS = [("B.Cu", "GND"), ("F.Cu", "GND")]
+_KEEP = []  # see main()
 
 
 def add_pours(board_path, pours):
@@ -35,6 +36,7 @@ def add_pours(board_path, pours):
     board = pcbnew.LoadBoard(board_path)
     for z in list(board.Zones()):
         board.Remove(z)
+        _KEEP.append(z)
     netcodes = {}
     for fp in board.GetFootprints():
         for pad in fp.Pads():
@@ -62,6 +64,73 @@ def add_pours(board_path, pours):
     print("saved %s: %d track segments, %d vias, %d pours" % (board_path, n_tracks, n_vias, len(zones)))
 
 
+def preroute(board):
+    """Add the hand-routed, locked tracks listed in gen_kicad.PREROUTES."""
+    import pcbnew
+    sys.path.insert(0, HERE)
+    from gen_kicad import PREROUTES, PREROUTE_WIDTH
+    mm = pcbnew.FromMM
+    pads = {}
+    for fp in board.GetFootprints():
+        for pad in fp.Pads():
+            pads.setdefault((fp.GetReference(), pad.GetNumber()), pad)
+    netcodes = {pad.GetNetname(): pad.GetNetCode() for pad in pads.values()}
+
+    def pt(p, prev):
+        """(x, y) with None meaning 'same as previous', or 'REF:pad' / ("REF","pad") for a pad centre."""
+        if isinstance(p, tuple) and isinstance(p[0], str):
+            c = pads[(p[0], p[1])].GetPosition()
+            return c.x, c.y
+        x, y = p
+        if isinstance(x, str):
+            x = pads[tuple(x.split(":"))].GetPosition().x
+        elif x is None:
+            x = prev[0]
+        else:
+            x = mm(x)
+        if isinstance(y, str):
+            y = pads[tuple(y.split(":"))].GetPosition().y
+        elif y is None:
+            y = prev[1]
+        else:
+            y = mm(y)
+        return x, y
+
+    n = 0
+    for net, layer, geom in PREROUTES:
+        if layer == "VIA":
+            v = pcbnew.PCB_VIA(board)
+            v.SetPosition(pcbnew.VECTOR2I(mm(geom[0]), mm(geom[1])))
+            v.SetViaType(pcbnew.VIATYPE_THROUGH)
+            v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+            v.SetDrill(mm(0.35))
+            try:
+                v.SetWidth(pcbnew.PADSTACK.ALL_LAYERS, mm(0.7))
+            except Exception:
+                v.SetWidth(mm(0.7))
+            v.SetNetCode(netcodes[net])
+            v.SetLocked(True)
+            board.Add(v)
+            n += 1
+            continue
+        lay = pcbnew.F_Cu if layer == "F.Cu" else pcbnew.B_Cu
+        prev = None
+        for p in geom:
+            cur = pt(p, prev)
+            if prev is not None:
+                t = pcbnew.PCB_TRACK(board)
+                t.SetStart(pcbnew.VECTOR2I(*prev))
+                t.SetEnd(pcbnew.VECTOR2I(*cur))
+                t.SetWidth(mm(PREROUTE_WIDTH))
+                t.SetLayer(lay)
+                t.SetNetCode(netcodes[net])
+                t.SetLocked(True)
+                board.Add(t)
+                n += 1
+            prev = cur
+    return n
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--java")
@@ -83,11 +152,16 @@ def main():
     ses = os.path.join(args.workdir, "synth_machine.ses")
 
     board = pcbnew.LoadBoard(BOARD)
-    # clean slate: drop tracks, vias and pours so re-routing is repeatable
+    # clean slate: drop tracks, vias and pours so re-routing is repeatable.
+    # Removed items are kept alive in _KEEP: letting Python free them crashes pcbnew later.
     for t in list(board.GetTracks()):
         board.Remove(t)
+        _KEEP.append(t)
     for z in list(board.Zones()):
         board.Remove(z)
+        _KEEP.append(z)
+    n_pre = preroute(board)
+    print("pre-routed %d locked segments/vias" % n_pre)
     if not pcbnew.ExportSpecctraDSN(board, dsn):
         sys.exit("DSN export failed")
     print("exported", dsn)
@@ -104,6 +178,8 @@ def main():
 
     if not pcbnew.ImportSpecctraSES(board, ses):
         sys.exit("SES import failed")
+    n_locked = sum(1 for t in board.GetTracks() if t.IsLocked())
+    print("locked items after import: %d (expected %d)" % (n_locked, n_pre))
     pcbnew.SaveBoard(BOARD, board)
     del board
     # pours in a fresh interpreter: reloading a board next to the routed one trips SWIG ownership bugs
