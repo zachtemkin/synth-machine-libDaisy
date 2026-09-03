@@ -13,9 +13,10 @@ always agree with each other and with the pin map in `../synthMachine.cpp`.
 ## Open it
 
 Open `synth_machine.kicad_pro` in KiCad 9. The schematic passes ERC with zero
-violations; the PCB has all parts placed but **nothing is routed** (the DRC
-"unconnected items" are the ratsnest). The remaining DRC errors are four
-hole-clearance nits inside KiCad's own USB-C footprint and can be ignored.
+violations. The PCB is placed **and autorouted** (Freerouting, 2 layers, zero
+unrouted connections) with GND pours on both sides. Remaining DRC items: four
+hole-clearance nits inside KiCad's own USB-C footprint and two "starved thermal"
+notes on header pads that already have 2 to 3 spokes. Both can be ignored.
 
 ## Regenerate
 
@@ -26,6 +27,26 @@ hole-clearance nits inside KiCad's own USB-C footprint and can be ignored.
 Edit the netlist / placements at the top of the script and re-run, or just
 edit the KiCad files directly once you are happy with the structure. The
 generator overwrites the `.kicad_sch` and `.kicad_pcb`, so pick one workflow.
+
+## Routing
+
+```bash
+KICAD_PY=/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3
+$KICAD_PY hardware/route.py --java <java25>/bin/java --jar freerouting-2.4.1.jar
+$KICAD_PY hardware/route.py --pours-only     # rebuild just the GND pours
+```
+
+`route.py` strips tracks and pours, exports a Specctra DSN, runs Freerouting
+headless, imports the session, then re-adds and fills the GND pours. Net
+classes (set in `gen_kicad.py`): 0.25 mm default, 0.6 mm "Power" for +5V and
+the speaker lines, 0.4 mm "USB_Power" for VBUS so it can escape the USB-C pads.
+GND and the 3V3 rails use the default width; the pours carry their current.
+Freerouting needs Java 25; a portable JRE from adoptium.net works without
+installing anything.
+
+The autorouter does not know audio from scan lines, so before ordering it is
+worth a manual pass on the short AUDIO_L/R and HP_* runs (keep them away from
+the USB pair and the matrix columns) and on the +5V feed to the amp header.
 
 ## Geometry
 
@@ -83,9 +104,9 @@ a - output with no ground reference. Two things follow:
 
 ## Things to verify before ordering
 
-1. **Button tab pitch (`TAB_PITCH`).** The button drawing's 9.05 mm is ambiguous
-   (centre-to-centre or outer-to-outer). The receptacles have no slack, so measure
-   a button with calipers and set the constant before generating boards.
+1. **Button tab pitch.** Measured 9.05 mm outer-edge to outer-edge with 2.8 mm
+   tabs, so `TAB_PITCH` is 6.25 mm centre-to-centre. Check one button against
+   a printed 1:1 footprint before ordering; the receptacles have no slack.
 2. **Seed pin-1 corner** on `DaisySeed_2x20`, and the **amp header's pin-1 end**
    on `Adafruit_MAX98306_Breakout` (silkscreen on the breakout: G/G' at one end,
    VDD at the other).
@@ -99,8 +120,6 @@ a - output with no ground reference. Two things follow:
 
 ## Next steps
 
-- Route it. Keep AUDIO_L/R short and away from the matrix scan lines and USB,
-  pour GND on both sides, star the amp's VDD from C1.
 - Decide whether to keep the breakout or put the MAX98306 (TDFN-14) straight on
   the board; that would put the speaker outputs on the PCB and drop J4.
 - Firmware: enable `EXTERNAL` USB MIDI, map BTN1..6, read HP_DET on D13, drive

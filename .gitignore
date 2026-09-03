@@ -106,3 +106,5 @@ builddir/
 *.kicad_prl
 *-backups/
 fp-info-cache
+hardware/route_tmp/
+__pycache__/

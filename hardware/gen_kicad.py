@@ -43,8 +43,8 @@ TOP_Y = BLACK_Y - (BTN_D + 25.0)                                # 51.5
 POT_Y = TOP_Y - BTN_D / 2 - 12.5 - 3.5                          # 23.7  (O7 panel holes)
 LED_XY = (KEY_X0 + 3.5 * KEY_PITCH, BOARD_H - 81.2)             # small hole above E/F gap
 # Arcade button tabs: 2.8 x 0.5 mm, two tabs side by side.  The drawing gives 9.05 mm
-# but not whether that is centre-to-centre or outer-to-outer.  MEASURE and set this.
-TAB_PITCH = 9.05           # centre-to-centre distance between the two tabs
+# measured outer-edge to outer-edge (confirmed), tabs 2.8 mm wide.
+TAB_PITCH = 9.05 - 2.8     # 9.05 mm outer-to-outer measured, 2.8 mm tabs -> 6.25 centre-to-centre
 # Keystone 3534 vertical quick-fit receptacle (accepts .110 tab): two legs 3.7 mm apart,
 # 1.65 mm holes, body 4.0 x 2.2 mm, 8 mm above the board, tab inserts 5 mm.
 RECEPT_LEG_PITCH, RECEPT_HOLE = 3.7, 1.65
@@ -233,7 +233,7 @@ add("J7", "Connector_Audio:AudioJack3_SwitchTR", "Headphones 3.5mm (CUI SJ1-3515
     {"S": "GND", "T": "HP_L", "R": "HP_R", "TN": "HP_DET", "RN": None},
     sch=(20, 130, 0), pcb=(120.0, 155.8, 90))
 add("R3", "Device:R", "100k", R_FP, {"1": "+3V3", "2": "HP_DET"}, sch=(36, 126, 0), pcb=(64.0, 84.0, 0))
-add("R4", "Device:R", "10k", R_SMD, {"1": "HP_L", "2": "GND"}, sch=(42, 126, 0), pcb=(96.0, 156.0, 0))
+add("R4", "Device:R", "10k", R_SMD, {"1": "HP_L", "2": "GND"}, sch=(42, 126, 0), pcb=(100.0, 157.0, 0))
 add("R5", "Device:R", "10k", R_FP, {"1": "HP_DET", "2": "Q1_B"}, sch=(52, 126, 0), pcb=(78.0, 80.0, 0))
 add("R6", "Device:R", "10k", R_FP, {"1": "MUTE", "2": "Q1_B"}, sch=(58, 126, 0), pcb=(78.0, 84.0, 0))
 add("Q1", "Transistor_BJT:Q_NPN_EBC", "2N3904", "Package_TO_SOT_THT:TO-92_Inline",
@@ -249,19 +249,19 @@ add("U2", "SynthMachine:TPA6138A2", "TPA6138A2PWR", "Package_SO:TSSOP-14_4.4x5mm
      "12": "HP_L", "3": "HP_R", "8": "HP_CP", "7": "HP_CN", "6": "HP_VSS", "4": "GND", "10": "GND"},
     sch=(146, 128, 0), pcb=(100.0, 150.0, 0),
     desc="TI TPA6138A2 40mW DirectPath stereo headphone amplifier, TSSOP-14, 3.3V")
-for ch, y_s, col in (("L", 122, 84.0), ("R", 134, 88.0)):
+for ch, y_s, col in (("L", 122, 80.0), ("R", 134, 86.0)):
     add("C%d" % (7 if ch == "L" else 8), "Device:C", "1u", C_SMD, {"1": "AUDIO_" + ch, "2": "HP_IN%s_C" % ch},
-        sch=(108, y_s, 90), pcb=(col, 147.0, 0))
+        sch=(108, y_s, 90), pcb=(col, 146.0, 0))
     add("R%d" % (8 if ch == "L" else 10), "Device:R", "10k", R_SMD, {"1": "HP_IN%s_C" % ch, "2": "HP_IN" + ch},
         sch=(116, y_s, 90), pcb=(col, 149.5, 0))
     add("R%d" % (9 if ch == "L" else 11), "Device:R", "10k", R_SMD, {"1": "HP_IN" + ch, "2": "HP_" + ch},
-        sch=(124, y_s, 90), pcb=(col, 152.0, 0))
+        sch=(124, y_s, 90), pcb=(col, 153.0, 0))
     add("C%d" % (9 if ch == "L" else 10), "Device:C", "47p", C_SMD, {"1": "HP_IN" + ch, "2": "HP_" + ch},
-        sch=(132, y_s, 90), pcb=(col, 154.5, 0))
-add("C11", "Device:C", "1u", C_SMD, {"1": "HP_CP", "2": "HP_CN"}, sch=(166, 122, 90), pcb=(92.0, 147.0, 0))
+        sch=(132, y_s, 90), pcb=(col, 156.5, 0))
+add("C11", "Device:C", "1u", C_SMD, {"1": "HP_CP", "2": "HP_CN"}, sch=(166, 122, 90), pcb=(92.0, 146.0, 0))
 add("C12", "Device:C", "1u", C_SMD, {"1": "HP_VSS", "2": "GND"}, sch=(172, 122, 90), pcb=(92.0, 149.5, 0))
-add("C13", "Device:C", "2u2", C_SMD, {"1": "+3V3", "2": "GND"}, sch=(178, 122, 90), pcb=(92.0, 152.0, 0))
-add("R12", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "HP_MUTE"}, sch=(184, 122, 90), pcb=(92.0, 154.5, 0))
+add("C13", "Device:C", "2u2", C_SMD, {"1": "+3V3", "2": "GND"}, sch=(178, 122, 90), pcb=(92.0, 153.0, 0))
+add("R12", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "HP_MUTE"}, sch=(184, 122, 90), pcb=(92.0, 156.5, 0))
 
 # --- Panel LED (wired, panel-mount 3 mm LED in the small hole) -----------------------
 add("R7", "Device:R", "1k", R_FP, {"1": "LED", "2": "LED_A"}, sch=(90, 128, 0), pcb=(100.0, 70.0, 0))
@@ -457,7 +457,7 @@ def footprint_arcade_button():
     L.append(fp_text("${REFERENCE}", 0, 8, "F.Fab", 1.0))
     for num, tx in (("1", -TAB_PITCH / 2), ("2", TAB_PITCH / 2)):
         for lx in (-RECEPT_LEG_PITCH / 2, RECEPT_LEG_PITCH / 2):
-            L.append(pad_tht(num, tx + lx, 0, RECEPT_HOLE + 0.8, RECEPT_HOLE))
+            L.append(pad_tht(num, tx + lx, 0, RECEPT_HOLE + 0.55, RECEPT_HOLE))
         L.append(fp_rect(tx - 2.0, -1.1, tx + 2.0, 1.1, "F.Fab"))
         L.append(fp_rect(tx - 2.3, -1.4, tx + 2.3, 1.4, "F.SilkS", 0.12))
     L.append(")")
@@ -740,7 +740,7 @@ def write_pcb(root_uuid):
     text("SPK L", 72, 71, 1.0)
     text("SPK R", 82, 71, 1.0)
     text("HP", 120, 141, 1.2)
-    text("HP AMP", 88, 159, 1.0)
+    text("HP AMP", 86, 159.5, 1.0)
     text("LED", LED_XY[0] + 6, LED_XY[1] + 1.3, 1.0)
     text("EXP", 14, 152, 1.0)
 
@@ -758,6 +758,31 @@ def write_pcb(root_uuid):
             board.Add(z)
         except Exception as e:  # zone API drifts between versions; a stub can live without it
             print("zone skipped:", e)
+
+    # Design rules / net classes (the autorouter reads these from the DSN export)
+    try:
+        ds = board.GetDesignSettings()
+        ds.m_MinClearance = mm(0.2)
+        ds.m_TrackMinWidth = mm(0.25)
+        ds.m_ViasMinSize = mm(0.6)
+        ds.m_MinThroughDrill = mm(0.3)
+        ns = ds.m_NetSettings
+        dflt = ns.GetDefaultNetclass()
+        dflt.SetClearance(mm(0.2)); dflt.SetTrackWidth(mm(0.25)); dflt.SetViaDiameter(mm(0.7)); dflt.SetViaDrill(mm(0.35))
+        pwr = pcbnew.NETCLASS("Power")
+        pwr.SetClearance(mm(0.2)); pwr.SetTrackWidth(mm(0.6)); pwr.SetViaDiameter(mm(0.9)); pwr.SetViaDrill(mm(0.5))
+        ns.SetNetclass("Power", pwr)
+        usb = pcbnew.NETCLASS("USB_Power")   # narrower so it can escape the USB-C's 0.5 mm pitch pads
+        usb.SetClearance(mm(0.2)); usb.SetTrackWidth(mm(0.4)); usb.SetViaDiameter(mm(0.8)); usb.SetViaDrill(mm(0.4))
+        ns.SetNetclass("USB_Power", usb)
+        # GND stays in the default class: the tracks only guarantee connectivity, the pours carry current
+        # +3V3 / +3.3VA carry tens of mA at most and have to reach TSSOP pads: default class
+        for pat in ("+5V", "+5V_SW", "SPK_*", "SPKF_*"):
+            ns.SetNetclassPatternAssignment(pat, "Power")
+        ns.SetNetclassPatternAssignment("VBUS", "USB_Power")
+        print("netclasses set")
+    except Exception as e:
+        print("netclass setup skipped:", e)
 
     pcbnew.SaveBoard(os.path.join(HERE, PROJECT + ".kicad_pcb"), board)
     return True
@@ -781,7 +806,8 @@ def write_project_files():
         f.write('(fp_lib_table (version 7)\n  (lib (name "SynthMachine")(type "KiCad")(uri "${KIPRJMOD}/SynthMachine.pretty")(options "")(descr "Project footprints"))\n)\n')
     pro = {
         "meta": {"filename": PROJECT + ".kicad_pro", "version": 1},
-        "board": {"design_settings": {"defaults": {}, "rules": {"min_clearance": 0.2, "min_track_width": 0.25, "min_via_diameter": 0.6, "min_via_annular_width": 0.15}}},
+        "board": {"design_settings": {"defaults": {}, "rules": {"min_clearance": 0.2, "min_track_width": 0.25, "min_via_diameter": 0.6, "min_via_annular_width": 0.15},
+                                      "rule_severities": {"starved_thermal": "warning"}}},
         "libraries": {"pinned_footprint_libs": [], "pinned_symbol_libs": []},
         "net_settings": {"classes": [{"name": "Default", "clearance": 0.2, "track_width": 0.3, "via_diameter": 0.8, "via_drill": 0.4,
                                       "wire_width": 6, "bus_width": 12, "pcb_color": "rgba(0, 0, 0, 0.000)", "schematic_color": "rgba(0, 0, 0, 0.000)"}]},
