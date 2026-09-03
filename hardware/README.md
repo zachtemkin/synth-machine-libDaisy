@@ -113,10 +113,14 @@ a - output with no ground reference. Two things follow:
 3. **Detect polarity.** HP_DET is held low through the jack's TN contact by the
    headphone amp's output (0 V DC) and R4. If U2 is muted its output floats and
    R4 alone holds it; check with a meter before trusting the auto-mute.
-4. **USB power budget.** Two 4 ohm speakers at full tilt can draw more than a
+4. **Connector edges.** J1 is placed so the footprint's "PCB Edge" line sits on
+   the board edge (the shell overhangs about 1 mm, which is normal). The
+   headphone jack has no such marker; check its nose against the edge with the
+   real part.
+5. **USB power budget.** Two 4 ohm speakers at full tilt can draw more than a
    USB-A port's 500 mA. A USB-C supply or a 1.5 A-capable port is fine; a laptop
    USB-A port will brown out at high volume.
-5. Standoff height between panel and PCB (about 31 mm, see Geometry).
+6. Standoff height between panel and PCB (about 31 mm, see Geometry).
 
 ## Next steps
 

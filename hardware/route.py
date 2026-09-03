@@ -105,7 +105,9 @@ def main():
     if not pcbnew.ImportSpecctraSES(board, ses):
         sys.exit("SES import failed")
     pcbnew.SaveBoard(BOARD, board)
-    add_pours(BOARD, POURS)
+    del board
+    # pours in a fresh interpreter: reloading a board next to the routed one trips SWIG ownership bugs
+    subprocess.check_call([sys.executable, os.path.abspath(__file__), "--pours-only"])
 
 
 if __name__ == "__main__":

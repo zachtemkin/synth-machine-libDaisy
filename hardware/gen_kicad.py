@@ -183,7 +183,7 @@ add("J1", "Connector:USB_C_Receptacle_USB2.0_16P", "USB-C (MIDI + 5V power)",
      "A4": "VBUS", "A9": "VBUS", "B4": "VBUS", "B9": "VBUS",
      "A5": "CC1", "B5": "CC2", "A6": "USB_DP", "B6": "USB_DP", "A7": "USB_DM", "B7": "USB_DM",
      "A8": None, "B8": None},
-    sch=(20, 100, 0), pcb=(114.0, 4.7, 180))
+    sch=(20, 100, 0), pcb=(114.0, 3.675, 180))   # footprint "PCB Edge" line lands on y=0
 R_FP = "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
 R_SMD = "Resistor_SMD:R_0805_2012Metric"
 C_SMD = "Capacitor_SMD:C_0805_2012Metric"
