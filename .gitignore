@@ -101,3 +101,8 @@ Makefile.cmake
 meson-logs/
 meson-private/
 builddir/
+
+# KiCad local state
+*.kicad_prl
+*-backups/
+fp-info-cache
