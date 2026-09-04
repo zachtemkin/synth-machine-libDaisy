@@ -213,8 +213,8 @@ add("C19", "Device:C", "1u", C_SMD, {"1": "GND", "2": "AMP_INRN"}, sch=(110, 106
 add("C17", "Device:C", "1u", C_SMD, {"1": "AUDIO_R", "2": "AMP_INR"}, sch=(104, 106, 90), pcb=(65.0, 24.0, 0), lcsc="C28323")
 add("C14", "Device:C", "10u", C_SMD, {"1": "+5V", "2": "GND"}, sch=(134, 94, 90), pcb=(82.0, 19.6, 0), lcsc="C15850")
 add("C15", "Device:C", "100n", C_SMD, {"1": "+5V", "2": "GND"}, sch=(140, 94, 90), pcb=(82.0, 22.0, 0), lcsc="C49678")
-add("R13", "Device:R", "100k", R_SMD, {"1": "AMP_GAIN", "2": "+5V"}, sch=(134, 106, 90), pcb=(72.0, 30.0, 0), lcsc="C17407")
-add("R14", "Device:R", "100k", R_SMD, {"1": "AMP_SD", "2": "+5V"}, sch=(140, 106, 90), pcb=(79.0, 30.0, 0), lcsc="C17407")
+add("R13", "Device:R", "100k", R_SMD, {"1": "AMP_GAIN", "2": "+5V"}, sch=(134, 106, 90), pcb=(72.0, 30.0, 0), lcsc="C96346")
+add("R14", "Device:R", "100k", R_SMD, {"1": "AMP_SD", "2": "+5V"}, sch=(140, 106, 90), pcb=(79.0, 30.0, 0), lcsc="C96346")
 add("JP1", "Jumper:SolderJumper_3_Open", "GAIN: 1-2 = 18dB, open = R13, 2-3 = 12dB",
     "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm",
     {"1": "GND", "2": "AMP_GAIN", "3": "+5V"}, sch=(128, 112, 0), pcb=(72.0, 33.0, 0))
@@ -240,7 +240,7 @@ add("J7", "Connector_Audio:AudioJack3_SwitchTR", "Headphones 3.5mm (CUI SJ1-3515
     "Connector_Audio:Jack_3.5mm_CUI_SJ1-3515N_Horizontal",
     {"S": "GND", "T": "HP_L", "R": "HP_R", "TN": "HP_DET", "RN": None},
     sch=(20, 130, 0), pcb=(6.1, 76.0, 0))
-add("R3", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "HP_DET"}, sch=(36, 126, 0), pcb=(64.0, 84.0, 0), lcsc="C17407")
+add("R3", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "HP_DET"}, sch=(36, 126, 0), pcb=(64.0, 84.0, 0), lcsc="C96346")
 add("R4", "Device:R", "10k", R_SMD, {"1": "HP_L", "2": "GND"}, sch=(42, 126, 0), pcb=(30.0, 84.0, 0), lcsc="C17414")
 add("R5", "Device:R", "10k", R_SMD, {"1": "HP_DET", "2": "Q1_B"}, sch=(52, 126, 0), pcb=(78.0, 80.0, 0), lcsc="C17414")
 add("R6", "Device:R", "10k", R_SMD, {"1": "MUTE", "2": "Q1_B"}, sch=(58, 126, 0), pcb=(78.0, 84.0, 0), lcsc="C17414")
@@ -272,7 +272,7 @@ for ch, y_s in (("L", 122), ("R", 134)):
 add("C11", "Device:C", "1u", C_SMD, {"1": "HP_CP", "2": "HP_CN"}, sch=(166, 122, 90), pcb=(21.0, 76.0, 0), lcsc="C28323")
 add("C12", "Device:C", "1u", C_SMD, {"1": "HP_VSS", "2": "GND"}, sch=(172, 122, 90), pcb=(25.0, 76.0, 0), lcsc="C28323")
 add("C13", "Device:C", "10u", C_SMD, {"1": "+3V3", "2": "GND"}, sch=(178, 122, 90), pcb=(21.0, 78.5, 0), lcsc="C15850")
-add("R12", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "HP_MUTE"}, sch=(184, 122, 90), pcb=(25.0, 78.5, 0), lcsc="C17407")
+add("R12", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "HP_MUTE"}, sch=(184, 122, 90), pcb=(25.0, 78.5, 0), lcsc="C96346")
 
 # Hand-routed nets, locked before the autorouter runs (see route.py).  Endpoints are
 # either (x, y) in mm or ("REF", "pad") resolved to that pad's centre.
