@@ -138,9 +138,10 @@ shipping rather than the $2 headline price.
 parts with an LCSC number (U2, U3 and the 0805 passives); everything else is
 left for hand soldering. Codes used: MAX98306 C124549 and TPA6138A2PWR C183097
 (extended parts, small loading fee each), basic parts C17414 10k, C149504 100k (JLC-branded 0805W8F1003T5E; C17407 was out of stock),
-C27834 5k1, C28323 1u, C15850 10u, C49678 100n, C14857 47p, C53172 220p. In
-JLC's placement preview check the rotation of U2 and U3 (KiCad and JLC disagree
-on the zero angle for some packages) and that pin 1 dots match.
+C27834 5k1, C28323 1u, C15850 10u, C49678 100n, C14857 47p, C53172 220p. The CPL
+pre-rotates U2 and U3 by -90 degrees because JLC's zero angle for TSSOP and TDFN
+bodies differs from KiCad's; still check in JLC's placement preview that each
+chip's pin-1 dot sits on the silkscreen triangle and the leads lie on the pads.
 
 ## Things to verify before ordering
 

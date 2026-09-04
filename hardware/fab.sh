@@ -36,9 +36,17 @@ assembled = {ref.strip() for r in rows if r.get("LCSC") for ref in r["Refs"].rep
 pos = list(csv.DictReader(open(os.path.join(out, "_smd_pos.csv"))))
 with open(os.path.join(out, "jlcpcb_cpl.csv"), "w", newline="") as f:
     w = csv.writer(f); w.writerow(["Designator", "Mid X", "Mid Y", "Layer", "Rotation"])
+    # JLCPCB's zero angle for TSSOP/TDFN/QFN/SOIC bodies is 90 deg off KiCad's (their model
+    # appears rotated 90 deg CCW in the placement preview), so pre-rotate those by -90.
+    import re
+    def jlc_rot(pkg, rot):
+        if re.search(r"TSSOP|TDFN|QFN|DFN|SOIC|SOP", pkg):
+            return (float(rot) - 90.0) % 360.0
+        return float(rot)
     for p in pos:
         if p["Ref"] in assembled:
-            w.writerow([p["Ref"], p["PosX"], p["PosY"], "Top" if p["Side"] == "top" else "Bottom", p["Rot"]])
+            w.writerow([p["Ref"], p["PosX"], p["PosY"], "Top" if p["Side"] == "top" else "Bottom",
+                        "%.1f" % jlc_rot(p["Package"], p["Rot"])])
 os.remove(os.path.join(out, "_smd_pos.csv"))
 print("jlcpcb_bom.csv / jlcpcb_cpl.csv written")
 PYEOF
