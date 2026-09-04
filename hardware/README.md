@@ -12,8 +12,10 @@ always agree with each other and with the pin map in `../synthMachine.cpp`.
 
 ## Open it
 
-Open `synth_machine.kicad_pro` in KiCad 9. The schematic passes ERC with zero
-violations. The PCB is placed **and autorouted** (Freerouting, 2 layers, zero
+Open `synth_machine.kicad_pro` in KiCad 9 or 10. The schematic passes ERC with
+zero violations once KiCad's global library tables exist (a fresh KiCad 10
+install creates them on first launch; before that ERC only reports "library
+not in configuration" warnings). The PCB is placed **and autorouted** (Freerouting, 2 layers, zero
 unrouted connections) with GND pours on both sides. Remaining DRC items: four
 hole-clearance nits inside KiCad's own USB-C footprint and two "starved thermal"
 notes on header pads that already have 2 to 3 spokes. Both can be ignored.
@@ -63,8 +65,8 @@ under the panel.
 Each button plugs into two **Keystone 3534** vertical quick-fit receptacles
 (0.110" tabs, 8 mm tall, two 1.65 mm legs on 3.7 mm pitch). With the tab tips
 27.5 mm below the flange and 5 mm of insertion, the PCB top surface lands about
-**31 mm below the panel underside**. That is why the pots, the LED, and the power
-switch are wired panel-mount parts on headers rather than board-mounted.
+**31 mm below the panel underside**. That is why the pots are wired panel-mount
+parts on headers rather than board-mounted.
 
 ## What is on the board
 
@@ -75,12 +77,11 @@ switch are wired panel-mount parts on headers rather than board-mounted.
 | Spare buttons | SW14..SW19 + D13..D18 | Top row, on the 6 unused matrix slots: (c0 r0) (c0 r1) (c1 r0) (c2 r0) (c3 r0) (c4 r0). They are the `-1` entries in `NOTE_MAPPING`. |
 | Pots | J10..J14, 1x3 headers at the panel's O7 holes | 1 = +3V3A, 2 = wiper to A0..A4, 3 = AGND. Use 10k linear panel-mount pots. |
 | USB-C | J1 (GCT USB4105), R1/R2 5k1, F1 2A polyfuse | Data to D30/D29 = Daisy "external" USB, firmware must use `MidiUsbTransport::Config::EXTERNAL`. VBUS is the only power input. |
-| Power | F1 -> J3 panel switch -> +5V; C1 470u, C6 100n | 5 V rail feeds Seed VIN and the amp. |
+| Power | F1 -> +5V; C1 470u, C6 100n | 5 V rail feeds Seed VIN and the amp. No power switch: unplug USB, or add one in the cable. |
 | Amp | A1 = Adafruit #987 on a 1x9 header | Pin 1 = G ... 9 = VDD (from Adafruit's Eagle file). Inputs single-ended from the Seed line out, L-/R- to GND. |
 | Speakers | J4 1x4 header, FB1..FB4 + C2..C5, J5/J6 JST-PH | Amp outputs exist only on the breakout's screw terminals, so 4 short wires go to J4. Each line then passes a ferrite bead with 220 pF to ground (the MAX98306 datasheet EMI filter) before the JST-PH speaker plugs. |
 | Headphone amp | U2 TI TPA6138A2PWR (TSSOP-14), C7/C8 1u in, R8..R11 10k, C9/C10 47p, C11/C12 1u charge pump, C13 2u2, R12 100k | DirectPath amp: ground-centred output, no output caps, 40 mW into 32 ohm from the Seed's 3V3 rail. Inverting stage, gain -1 (change R9/R11 for more). All passives 0805. Mute is active-low, pulled up by R12; D14 (HP_MUTE) can mute it. DigiKey 296-28248-1-ND, about $0.75. |
 | Headphone jack | J7 3.5 mm switched jack (CUI SJ1-3515N) on the left edge, R3 100k, R4 10k, R5/R6 10k, Q1 2N3904 | Tip/ring from U2. The jack's normally-closed TN contact is the plug detect: held near 0 V by the amp output (and R4) with nothing inserted, pulled to 3V3 when a plug opens it. Q1 then pulls the speaker amp's SD low, muting the speakers. D11 (MUTE) can do the same from firmware, D13 reads HP_DET. |
-| LED | R7 1k from D12, J9 header | Wired 3 mm panel LED in the small hole above the E/F gap. |
 | Expansion | J8 1x12 | HP_MUTE, D26, D27, A5..A8, HP_DET, MUTE, 3V3, 5V, GND. |
 | Mounting | H1..H6 M3 | Corner holes 8 mm in from the edges plus two mid-span. Match these to your enclosure. |
 
@@ -159,7 +160,7 @@ needed if you order SMT assembly for the headphone-amp section (U2 and the
 - Decide whether to keep the breakout or put the MAX98306 (TDFN-14) straight on
   the board; that would put the speaker outputs on the PCB and drop J4.
 - Firmware: enable `EXTERNAL` USB MIDI, map BTN1..6, read HP_DET on D13, drive
-  the LED on D12, optionally drive HP_MUTE (D14) low during boot for silence.
+  optionally drive HP_MUTE (D14) low during boot for silence. D12 is free.
 - The headphone amp section is the only SMD on the board (TSSOP-14 + 0805s);
   everything else is through-hole.
 - Bill of materials: `File > Fabrication Outputs > BOM` in the schematic editor.

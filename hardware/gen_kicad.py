@@ -93,7 +93,7 @@ SEED_PINS = {
     10: ("D9", "bidirectional", "COL5"),
     11: ("D10", "bidirectional", "KEY_C4"),
     12: ("D11", "bidirectional", "MUTE"),
-    13: ("D12", "bidirectional", "LED"),
+    13: ("D12", "bidirectional", None),
     14: ("D13", "bidirectional", "HP_DET"),
     15: ("D14", "bidirectional", "HP_MUTE"),
     16: ("AUDIO_IN_L", "input", None),
@@ -179,7 +179,7 @@ for i, (ref, net, label, px) in enumerate(POTS):
 # --- USB-C: MIDI data on D29/D30 (libDaisy EXTERNAL) and the only power input ------
 add("J1", "Connector:USB_C_Receptacle_USB2.0_16P", "USB-C (MIDI + 5V power)",
     "Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal",
-    {"S1": "GND", "A1": "GND", "A12": "GND", "B1": "GND", "B12": "GND",
+    {"S1": "GND", "SH": "GND", "A1": "GND", "A12": "GND", "B1": "GND", "B12": "GND",   # shield pad is S1 (KiCad 9 lib) or SH (KiCad 10)
      "A4": "VBUS", "A9": "VBUS", "B4": "VBUS", "B9": "VBUS",
      "A5": "CC1", "B5": "CC2", "A6": "USB_DP", "B6": "USB_DP", "A7": "USB_DM", "B7": "USB_DM",
      "A8": None, "B8": None},
@@ -190,10 +190,7 @@ C_SMD = "Capacitor_SMD:C_0805_2012Metric"
 add("R1", "Device:R", "5k1", R_FP, {"1": "CC1", "2": "GND"}, sch=(40, 96, 0), pcb=(140.0, 18.0, 0))
 add("R2", "Device:R", "5k1", R_FP, {"1": "CC2", "2": "GND"}, sch=(46, 96, 0), pcb=(140.0, 23.0, 0))
 add("F1", "Device:Polyfuse", "2A hold PTC (MF-R200)", "Fuse:Fuse_Bourns_MF-RG300",
-    {"1": "VBUS", "2": "+5V_SW"}, sch=(60, 100, 0), pcb=(140.0, 12.0, 0))
-add("J3", "Connector_Generic:Conn_01x02", "Panel power switch",
-    "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
-    {"1": "+5V_SW", "2": "+5V"}, sch=(76, 100, 0), pcb=(146.0, 30.0, 0))
+    {"1": "VBUS", "2": "+5V"}, sch=(60, 100, 0), pcb=(140.0, 12.0, 0))
 add("C1", "Device:C_Polarized", "470u 10V", "Capacitor_THT:CP_Radial_D8.0mm_P3.50mm",
     {"1": "+5V", "2": "GND"}, sch=(90, 100, 0), pcb=(92.0, 66.0, 0))
 add("C6", "Device:C", "100n", "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P2.50mm",
@@ -281,12 +278,6 @@ PREROUTES = [
     ("AUDIO_R", "F.Cu", [(25.0, 62.9), ("C8", "1")]),
 ]
 PREROUTE_WIDTH = 0.3
-
-# --- Panel LED (wired, panel-mount 3 mm LED in the small hole) -----------------------
-add("R7", "Device:R", "1k", R_FP, {"1": "LED", "2": "LED_A"}, sch=(90, 128, 0), pcb=(100.0, 70.0, 0))
-add("J9", "Connector_Generic:Conn_01x02", "Panel LED (anode, cathode)",
-    "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
-    {"1": "LED_A", "2": "GND"}, sch=(100, 128, 0), pcb=(LED_XY[0], LED_XY[1], 0))
 
 # --- Expansion header (spare Seed pins) -------------------------------------
 add("J8", "Connector_Generic:Conn_01x12", "Expansion",
@@ -638,7 +629,7 @@ def write_schematic():
         out.append('  (wire (pts (xy %s %s) (xy %s %s)) (stroke (width 0) (type default)) (uuid "%s"))' % (fmt(x1), fmt(y1), fmt(x2), fmt(y2), U()))
 
     # Power flags + a PWR_FLAG-driven stub for the rails no power_out pin drives.
-    for net, x, y in (("+5V", 100 * G, 92 * G), ("GND", 106 * G, 92 * G), ("+5V_SW", 112 * G, 92 * G), ("VBUS", 118 * G, 92 * G)):
+    for net, x, y in (("+5V", 100 * G, 92 * G), ("GND", 106 * G, 92 * G), ("VBUS", 118 * G, 92 * G)):
         if net in POWER_NETS:
             place_power(net, x, y)
         else:
@@ -649,7 +640,7 @@ def write_schematic():
         ("KEY MATRIX: columns D4-D9 driven low one at a time, rows D1-D3 read with pull-ups (see scanButtonMatrix). Diode anode to switch, cathode to column.", 78, 3),
         ("C4 is a direct key on D10 to GND (firmware uses internal pull-up).  BTN1-6 = top-row buttons on the 6 unused matrix slots (NOTE_MAPPING -1 entries).", 78, 5),
         ("POTS: panel-mount 10k linear pots wired to 3-pin headers: 1 = +3V3A, 2 = wiper -> A0..A4, 3 = AGND.", 78, 32),
-        ("POWER: USB-C only. VBUS -> 2A polyfuse -> panel switch (J3) -> +5V rail for Seed VIN and the amp. 5.1k CC pull-downs advertise a 1.5A sink.", 20, 88),
+        ("POWER: USB-C only. VBUS -> 2A polyfuse -> +5V rail for Seed VIN and the amp. 5.1k CC pull-downs advertise a 1.5A sink.", 20, 88),
         ("USB-C data to D29/D30 = Daisy 'external' USB. In firmware use MidiUsbTransport::Config::EXTERNAL.", 20, 90),
         ("AMP: Adafruit #987 breakout on a 1x9 header, single-ended inputs (L-/R- to GND). Speaker outputs come back via J4 -> ferrite + 220p EMI filter -> JST-PH.", 120, 90),
         ("Outputs are bridge-tied: NO series caps on the speakers, never join L- and R-.", 120, 92),
@@ -754,13 +745,11 @@ def write_pcb(root_uuid):
     for (ref, netname, label, px) in POTS:
         text(label, px, POT_Y - 5, 1.2)
     text("USB-C MIDI/5V", 114, 12, 1.0)
-    text("PWR SW", 146, 34.5, 1.0)
     text("AMP (Adafruit 987)", 72, 3, 1.2)
     text("SPK L", 72, 71, 1.0)
     text("SPK R", 82, 71, 1.0)
     text("HP", 10, 67.5, 1.2)
     text("HP AMP", 30.5, 80.0, 1.0)
-    text("LED", LED_XY[0] + 6, LED_XY[1] + 1.3, 1.0)
     text("EXP", 14, 152, 1.0)
 
     # GND pours (unfilled; press B in pcbnew)
