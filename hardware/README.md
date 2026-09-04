@@ -106,6 +106,34 @@ a - output with no ground reference. Two things follow:
   the chip's rating. Raise R9/R11 (e.g. 30k with R8/R10 = 15k for gain 2) if you
   use high-impedance headphones.
 
+## Ordering (JLCPCB / PCBWay)
+
+```bash
+sh hardware/fab.sh      # -> hardware/fab/synth_machine_gerbers.zip, _bom.csv, _pos.csv
+```
+
+Upload `synth_machine_gerbers.zip` unchanged; it holds the nine Gerbers
+(copper, mask, paste, silk, edge) with Protel extensions, the Excellon drill
+file (mm, plated and non-plated merged) and a drill map. Order parameters:
+
+| Parameter | Value |
+|---|---|
+| Layers / size | 2 layers, 234.95 x 161.925 mm |
+| Material / thickness | FR-4, 1.6 mm |
+| Copper | 1 oz outer |
+| Surface finish | HASL lead-free is fine; ENIG if you want nicer TSSOP soldering |
+| Min track / clearance | 0.25 mm / 0.2 mm (fab minimum is 0.127 mm) |
+| Min hole | 0.35 mm vias, 0.65 mm smallest NPTH, largest 3.2 mm |
+| Holes | 304, no slots, no castellations |
+| Silkscreen | top and bottom, refs only |
+| Remove order number | yes, or "specify location" |
+
+The board is bigger than 100 x 100 mm, so it falls outside the cheapest
+prototype tier at both fabs. Expect roughly $30 to $60 for five boards plus
+shipping rather than the $2 headline price. The BOM and position CSV are only
+needed if you order SMT assembly for the headphone-amp section (U2 and the
+0805s); everything else is through-hole and hand-soldered.
+
 ## Things to verify before ordering
 
 1. **Button tab pitch.** Measured 9.05 mm outer-edge to outer-edge with 2.8 mm

@@ -108,3 +108,4 @@ builddir/
 fp-info-cache
 hardware/route_tmp/
 __pycache__/
+hardware/fab/
