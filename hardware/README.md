@@ -137,7 +137,7 @@ shipping rather than the $2 headline price.
 `jlcpcb_bom.csv` and `jlcpcb_cpl.csv` from the same folder. The BOM lists only
 parts with an LCSC number (U2, U3 and the 0805 passives); everything else is
 left for hand soldering. Codes used: MAX98306 C124549 and TPA6138A2PWR C183097
-(extended parts, small loading fee each), basic parts C17414 10k, C96346 100k (Yageo RC0805FR-07100KL; the basic C17407 was out of stock at JLC),
+(extended parts, small loading fee each), basic parts C17414 10k, C149504 100k (JLC-branded 0805W8F1003T5E; C17407 was out of stock),
 C27834 5k1, C28323 1u, C15850 10u, C49678 100n, C14857 47p, C53172 220p. In
 JLC's placement preview check the rotation of U2 and U3 (KiCad and JLC disagree
 on the zero angle for some packages) and that pin 1 dots match.
