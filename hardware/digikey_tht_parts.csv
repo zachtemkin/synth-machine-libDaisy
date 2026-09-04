@@ -1,0 +1,14 @@
+Digi-Key Part Number,Manufacturer Part Number,Quantity,Customer Reference,Description
+36-3534-ND,3534,40,SW1-SW19 (2 each + spares),Keystone 3534 quick-fit receptacle 0.110in vertical
+1N4148FS-ND,1N4148,20,D1-D18 + spares,1N4148 diode DO-35
+2N3904FS-ND,2N3904,2,Q1 + spare,2N3904 NPN TO-92
+P124219-ND,EEU-FR1A471,2,C1 + spare,470uF 10V radial 8mm dia 3.5mm pitch
+240-2578-ND,2743007111,5,FB1-FB4 + spare,Fair-Rite axial ferrite bead (verify DK number; MPN is correct)
+455-1704-ND,B2B-PH-K-S(LF)(SN),3,J5 J6 + spare,JST PH 2-pin socket for the speaker plugs
+CP1-3515N-ND,SJ1-3515N,2,J7 + spare,CUI 3.5mm switched headphone jack
+2073-USB4105-GF-ACT-ND,USB4105-GF-A,2,J1 + spare,GCT USB-C 2.0 receptacle 16-pin
+MF-R200-ND,MF-R200,2,F1 + spare,Bourns 2A hold radial PTC fuse (verify DK number; MPN is correct)
+S7018-ND,PPTC201LFBN-RC,2,U1 sockets,1x20 female header for the Daisy Seed
+S1011EC-40-ND,PRPC040SAAN-RC,1,J8 J10-J14,1x40 breakaway pin header (cut into 1x12 and 5x 1x3)
+PDB181-E420K-103B-ND,PDB181-E420K-103B,5,panel pots,Bourns 16mm 10k linear panel pot solder lugs
+1528-1847-ND,1669,1,speakers,Adafruit stereo enclosed speaker set 3W 4 ohm

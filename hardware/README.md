@@ -143,6 +143,13 @@ pre-rotates U2 and U3 by -90 degrees because JLC's zero angle for TSSOP and TDFN
 bodies differs from KiCad's; still check in JLC's placement preview that each
 chip's pin-1 dot sits on the silkscreen triangle and the leads lie on the pads.
 
+**Through-hole parts (Digi-Key).** `digikey_tht_parts.csv` lists everything
+JLC does not place, with Digi-Key and manufacturer part numbers and quantities
+for one board plus spares. Upload it at digikey.com > My Lists > Upload, or
+paste the part numbers into the cart. Not on the list: the Daisy Seed
+(electro-smith.com), the arcade buttons, M3 standoffs (about 31 mm) and hookup
+wire for the pots, and knobs.
+
 ## Things to verify before ordering
 
 1. **Button tab pitch.** Measured 9.05 mm outer-edge to outer-edge with 2.8 mm
