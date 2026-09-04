@@ -76,7 +76,7 @@ parts on headers rather than board-mounted.
 | Keys | SW1..SW13 + D1..D12 (1N4148) | Bottom row white keys, middle row black keys. Columns D4..D9 driven low, rows D1..D3 with pull-ups, exactly as `scanButtonMatrix()`. C4 is direct on D10. |
 | Spare buttons | SW14..SW19 + D13..D18 | Top row, on the 6 unused matrix slots: (c0 r0) (c0 r1) (c1 r0) (c2 r0) (c3 r0) (c4 r0). They are the `-1` entries in `NOTE_MAPPING`. |
 | Pots | J10..J14, 1x3 headers at the panel's O7 holes | 1 = +3V3A, 2 = wiper to A0..A4, 3 = AGND. Use 10k linear panel-mount pots. |
-| USB-C | J1 (GCT USB4105), R1/R2 5k1, F1 2A polyfuse | Data to D30/D29 = Daisy "external" USB, firmware must use `MidiUsbTransport::Config::EXTERNAL`. VBUS is the only power input. |
+| USB-C | J1 (GCT USB4105), R1/R2 5k1, F1 2.5A polyfuse (Bourns MF-R250) | Data to D30/D29 = Daisy "external" USB, firmware must use `MidiUsbTransport::Config::EXTERNAL`. VBUS is the only power input. |
 | Power | F1 -> +5V; C1 470u, C6 100n | 5 V rail feeds Seed VIN and the amp. No power switch: unplug USB, or add one in the cable. |
 | Speaker amp | U3 MAX98306ETD+T (TDFN-14, exposed pad), C16..C19 1u, C14 10u, C15 100n, R13/R14 100k, JP1 | The Adafruit #987 circuit on the board. Single-ended inputs from the Seed line out (the - inputs go to GND through their 1u). R14 pulls ~SHDN up; Q1 pulls it low to mute. Gain: R13 100k to PVDD = 9 dB (about 2 W into 4 ohm from 1 Vrms). JP1 straps GAIN to GND for 18 dB or PVDD for 12 dB; no R13 and JP1 open = 6 dB. |
 | Speakers | FB1..FB4 + C2..C5, J5/J6 JST-PH | Each output passes a ferrite bead with 220 pF to ground (MAX98306 datasheet EMI filter) before the JST-PH speaker plugs. |
