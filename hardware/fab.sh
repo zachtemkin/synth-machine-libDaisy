@@ -21,8 +21,28 @@ rm -rf "$OUT"; mkdir -p "$GERB"
 "$CLI" pcb export pos --format csv --units mm --side both -o "$OUT/synth_machine_pos.csv" "$HERE/synth_machine.kicad_pcb"
 "$CLI" sch export bom --fields "Reference,Value,Footprint,QUANTITY" --labels "Refs,Value,Footprint,Qty" \
   --group-by "Value,Footprint" -o "$OUT/synth_machine_bom.csv" "$HERE/synth_machine.kicad_sch"
-# 1:1 test print on 11x17 (tabloid): outline, fab layer with pad outlines and actual hole sizes
-sed 's/(paper "[^"]*"[^)]*)/(paper "USLedger" portrait)/' "$HERE/synth_machine.kicad_pcb" > "$OUT/_ledger.kicad_pcb"
+# 1:1 test print on 11x17 (tabloid, landscape): outline, fab layer with pad outlines and actual
+# hole sizes, board shifted to the centre of the page so printer margins never clip it.
+KPY=/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3
+"$KPY" - "$HERE/synth_machine.kicad_pcb" "$OUT/_ledger.kicad_pcb" <<'PYEOF' 2>/dev/null
+import sys, pcbnew
+src, dst = sys.argv[1], sys.argv[2]
+b = pcbnew.LoadBoard(src)
+PAGE_W, PAGE_H = 431.8, 279.4                      # 17 x 11 in
+xs, ys = [], []
+for d in b.GetDrawings():
+    if d.GetLayer() == pcbnew.Edge_Cuts:
+        for pt in (d.GetStart(), d.GetEnd()):
+            xs.append(pcbnew.ToMM(pt.x)); ys.append(pcbnew.ToMM(pt.y))
+dx = (PAGE_W - (max(xs) - min(xs))) / 2 - min(xs)
+dy = (PAGE_H - (max(ys) - min(ys))) / 2 - min(ys)
+v = pcbnew.VECTOR2I(pcbnew.FromMM(dx), pcbnew.FromMM(dy))
+for coll in (b.GetFootprints(), b.GetTracks(), b.GetDrawings(), b.Zones()):
+    for item in list(coll):
+        item.Move(v)
+pcbnew.SaveBoard(dst, b)
+PYEOF
+sed -i '' 's/(paper "[^"]*"[^)]*)/(paper "USLedger")/' "$OUT/_ledger.kicad_pcb"
 "$CLI" pcb export pdf --layers "Edge.Cuts,F.Fab,Cmts.User" --sketch-pads-on-fab-layers --exclude-value \
   --black-and-white --drill-shape-opt 2 --scale 1 --mode-single -o "$OUT/synth_machine_1to1_11x17.pdf" "$OUT/_ledger.kicad_pcb"
 rm -f "$OUT/_ledger.kicad_pcb"
