@@ -97,7 +97,9 @@ def preroute(board):
         return x, y
 
     n = 0
-    for net, layer, geom in PREROUTES:
+    for entry in PREROUTES:
+        net, layer, geom = entry[:3]
+        width = entry[3] if len(entry) > 3 else PREROUTE_WIDTH
         if layer == "VIA":
             v = pcbnew.PCB_VIA(board)
             v.SetPosition(pcbnew.VECTOR2I(mm(geom[0]), mm(geom[1])))
@@ -121,7 +123,7 @@ def preroute(board):
                 t = pcbnew.PCB_TRACK(board)
                 t.SetStart(pcbnew.VECTOR2I(*prev))
                 t.SetEnd(pcbnew.VECTOR2I(*cur))
-                t.SetWidth(mm(PREROUTE_WIDTH))
+                t.SetWidth(mm(width))
                 t.SetLayer(lay)
                 t.SetNetCode(netcodes[net])
                 t.SetLocked(True)

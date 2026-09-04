@@ -60,8 +60,9 @@ def U():
 # Netlist / component model
 # ---------------------------------------------------------------------------
 class Part:
-    def __init__(self, ref, lib_id, value, footprint, pins, sch=(0, 0, 0), pcb=(0, 0, 0), desc=""):
+    def __init__(self, ref, lib_id, value, footprint, pins, sch=(0, 0, 0), pcb=(0, 0, 0), desc="", lcsc=""):
         self.ref, self.lib_id, self.value, self.footprint = ref, lib_id, value, footprint
+        self.lcsc = lcsc              # JLCPCB/LCSC part number for SMT assembly ("" = not assembled)
         self.pins = pins              # {pin_number: net or None}
         self.sch_at = sch             # (x, y, rot) schematic, in G units for x,y
         self.pcb_at = pcb             # (x, y, rot) mm
@@ -187,8 +188,8 @@ add("J1", "Connector:USB_C_Receptacle_USB2.0_16P", "USB-C (MIDI + 5V power)",
 R_FP = "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
 R_SMD = "Resistor_SMD:R_0805_2012Metric"
 C_SMD = "Capacitor_SMD:C_0805_2012Metric"
-add("R1", "Device:R", "5k1", R_FP, {"1": "CC1", "2": "GND"}, sch=(40, 96, 0), pcb=(140.0, 18.0, 0))
-add("R2", "Device:R", "5k1", R_FP, {"1": "CC2", "2": "GND"}, sch=(46, 96, 0), pcb=(140.0, 23.0, 0))
+add("R1", "Device:R", "5k1", R_SMD, {"1": "CC1", "2": "GND"}, sch=(40, 96, 0), pcb=(140.0, 18.0, 0), lcsc="C27834")
+add("R2", "Device:R", "5k1", R_SMD, {"1": "CC2", "2": "GND"}, sch=(46, 96, 0), pcb=(140.0, 23.0, 0), lcsc="C27834")
 add("F1", "Device:Polyfuse", "2A hold PTC (MF-R200)", "Fuse:Fuse_Bourns_MF-RG300",
     {"1": "VBUS", "2": "+5V"}, sch=(60, 100, 0), pcb=(140.0, 12.0, 0))
 add("C1", "Device:C_Polarized", "470u 10V", "Capacitor_THT:CP_Radial_D8.0mm_P3.50mm",
@@ -196,29 +197,39 @@ add("C1", "Device:C_Polarized", "470u 10V", "Capacitor_THT:CP_Radial_D8.0mm_P3.5
 add("C6", "Device:C", "100n", "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P2.50mm",
     {"1": "+5V", "2": "GND"}, sch=(98, 100, 0), pcb=(92.0, 74.0, 0))
 
-# --- Amp breakout (Adafruit 987, MAX98306) ------------------------------------
-# Header pin order from Adafruit's Eagle file: 1 G, 2 G', 3 R+, 4 R-, 5 L-, 6 L+, 7 SD, 8 GND, 9 VDD
-add("A1", "Connector_Generic:Conn_01x09", "Adafruit MAX98306 amp breakout",
-    "SynthMachine:Adafruit_MAX98306_Breakout",
-    {"1": None, "2": None, "3": "AUDIO_R", "4": "GND", "5": "GND", "6": "AUDIO_L", "7": "AMP_SD", "8": "GND", "9": "+5V"},
-    sch=(120, 100, 0), pcb=(62.0, 30.0, 0))
-# Speaker outputs live on the breakout's screw terminals; bring them back onto the board
-# with 4 short wires to J4, through a ferrite bead + 220p EMI filter, out to the JST-PH plugs.
-add("J4", "Connector_Generic:Conn_01x04", "From amp screw terminals (L+ L- R+ R-)",
-    "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
-    {"1": "SPK_L+", "2": "SPK_L-", "3": "SPK_R+", "4": "SPK_R-"}, sch=(140, 100, 0), pcb=(72.0, 40.0, 90))
+# --- Speaker amp: MAX98306 (TDFN-14, exposed pad) straight on the board ---------------
+# Same circuit as Adafruit #987: 1u on every input (single-ended: the - inputs go to GND
+# through their cap), 10u + 100n on PVDD, 100k pull-up on ~SHDN (Q1 pulls it low to mute),
+# gain by the GAIN pin: R13 100k to PVDD = 9 dB.  JP1 lets you strap GAIN to PVDD (12 dB)
+# or GND (18 dB) instead; leave R13 off and JP1 open for 6 dB.  EP + thermal vias to GND.
+add("U3", "SynthMachine:MAX98306", "MAX98306ETD+T", "Package_DFN_QFN:TDFN-14-1EP_3x3mm_P0.4mm_EP1.78x2.35mm_ThermalVias",
+    {"1": "GND", "8": "GND", "15": "GND", "2": "AMP_SD", "3": "AMP_INL", "4": "AMP_INLN", "5": "AMP_GAIN",
+     "6": "AMP_INRN", "7": "AMP_INR", "9": "SPK_RN", "10": "SPK_RP", "11": "+5V", "12": "+5V", "13": "SPK_LP", "14": "SPK_LN"},
+    sch=(120, 100, 0), pcb=(72.0, 20.0, 0), lcsc="C124549",
+    desc="Analog Devices MAX98306 stereo 3.7W class-D amplifier, TDFN-14 3x3 EP")
+add("C16", "Device:C", "1u", C_SMD, {"1": "AUDIO_L", "2": "AMP_INL"}, sch=(104, 94, 90), pcb=(65.0, 16.0, 0), lcsc="C28323")
+add("C18", "Device:C", "1u", C_SMD, {"1": "GND", "2": "AMP_INLN"}, sch=(110, 94, 90), pcb=(65.0, 18.5, 0), lcsc="C28323")
+add("C19", "Device:C", "1u", C_SMD, {"1": "GND", "2": "AMP_INRN"}, sch=(110, 106, 90), pcb=(65.0, 21.5, 0), lcsc="C28323")
+add("C17", "Device:C", "1u", C_SMD, {"1": "AUDIO_R", "2": "AMP_INR"}, sch=(104, 106, 90), pcb=(65.0, 24.0, 0), lcsc="C28323")
+add("C14", "Device:C", "10u", C_SMD, {"1": "+5V", "2": "GND"}, sch=(134, 94, 90), pcb=(82.0, 19.6, 0), lcsc="C15850")
+add("C15", "Device:C", "100n", C_SMD, {"1": "+5V", "2": "GND"}, sch=(140, 94, 90), pcb=(82.0, 22.0, 0), lcsc="C49678")
+add("R13", "Device:R", "100k", R_SMD, {"1": "AMP_GAIN", "2": "+5V"}, sch=(134, 106, 90), pcb=(72.0, 30.0, 0), lcsc="C17407")
+add("R14", "Device:R", "100k", R_SMD, {"1": "AMP_SD", "2": "+5V"}, sch=(140, 106, 90), pcb=(79.0, 30.0, 0), lcsc="C17407")
+add("JP1", "Jumper:SolderJumper_3_Open", "GAIN: 1-2 = 18dB, open = R13, 2-3 = 12dB",
+    "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm",
+    {"1": "GND", "2": "AMP_GAIN", "3": "+5V"}, sch=(128, 112, 0), pcb=(72.0, 33.0, 0))
+# Speaker outputs -> ferrite bead + 220p EMI filter (MAX98306 datasheet) -> JST-PH plugs.
 FB_FP = "Inductor_THT:L_Axial_L5.3mm_D2.2mm_P7.62mm_Horizontal_Vishay_IM-1"
-CS_FP = "Capacitor_THT:C_Disc_D3.0mm_W1.6mm_P2.50mm"
-for i, sig in enumerate(["L+", "L-", "R+", "R-"]):
+for i, sig in enumerate(["RN", "RP", "LP", "LN"]):   # order chosen so the B.Cu bus needs no crossings
     add("FB%d" % (i + 1), "Device:FerriteBead", "600R@100MHz", FB_FP,
         {"1": "SPK_" + sig, "2": "SPKF_" + sig}, sch=(150 + i * 8, 96, 90), pcb=(72.0, 46.0 + 4 * i, 0))
-    add("C%d" % (i + 2), "Device:C", "220p", CS_FP,
-        {"1": "SPKF_" + sig, "2": "GND"}, sch=(150 + i * 8, 106, 0), pcb=(63.5, 46.0 + 4 * i, 0))
+    add("C%d" % (i + 2), "Device:C", "220p", C_SMD,
+        {"1": "SPKF_" + sig, "2": "GND"}, sch=(150 + i * 8, 106, 0), pcb=(63.5, 46.0 + 4 * i, 0), lcsc="C53172")
 JST_FP = "Connector_JST:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical"
 add("J5", "Connector_Generic:Conn_01x02", "Speaker L (JST-PH)", JST_FP,
-    {"1": "SPKF_L+", "2": "SPKF_L-"}, sch=(190, 96, 0), pcb=(72.0, 66.0, 0))
+    {"1": "SPKF_LP", "2": "SPKF_LN"}, sch=(190, 96, 0), pcb=(72.0, 66.0, 0))
 add("J6", "Connector_Generic:Conn_01x02", "Speaker R (JST-PH)", JST_FP,
-    {"1": "SPKF_R+", "2": "SPKF_R-"}, sch=(190, 106, 0), pcb=(82.0, 66.0, 0))
+    {"1": "SPKF_RP", "2": "SPKF_RN"}, sch=(190, 106, 0), pcb=(82.0, 66.0, 0))
 
 # --- Headphone jack on the Seed line out, with plug detect that mutes the amp --------
 # Tip/ring carry AUDIO_L/R.  TN is shorted to T while nothing is plugged in, so HP_DET
@@ -229,10 +240,10 @@ add("J7", "Connector_Audio:AudioJack3_SwitchTR", "Headphones 3.5mm (CUI SJ1-3515
     "Connector_Audio:Jack_3.5mm_CUI_SJ1-3515N_Horizontal",
     {"S": "GND", "T": "HP_L", "R": "HP_R", "TN": "HP_DET", "RN": None},
     sch=(20, 130, 0), pcb=(6.1, 76.0, 0))
-add("R3", "Device:R", "100k", R_FP, {"1": "+3V3", "2": "HP_DET"}, sch=(36, 126, 0), pcb=(64.0, 84.0, 0))
-add("R4", "Device:R", "10k", R_SMD, {"1": "HP_L", "2": "GND"}, sch=(42, 126, 0), pcb=(30.0, 84.0, 0))
-add("R5", "Device:R", "10k", R_FP, {"1": "HP_DET", "2": "Q1_B"}, sch=(52, 126, 0), pcb=(78.0, 80.0, 0))
-add("R6", "Device:R", "10k", R_FP, {"1": "MUTE", "2": "Q1_B"}, sch=(58, 126, 0), pcb=(78.0, 84.0, 0))
+add("R3", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "HP_DET"}, sch=(36, 126, 0), pcb=(64.0, 84.0, 0), lcsc="C17407")
+add("R4", "Device:R", "10k", R_SMD, {"1": "HP_L", "2": "GND"}, sch=(42, 126, 0), pcb=(30.0, 84.0, 0), lcsc="C17414")
+add("R5", "Device:R", "10k", R_SMD, {"1": "HP_DET", "2": "Q1_B"}, sch=(52, 126, 0), pcb=(78.0, 80.0, 0), lcsc="C17414")
+add("R6", "Device:R", "10k", R_SMD, {"1": "MUTE", "2": "Q1_B"}, sch=(58, 126, 0), pcb=(78.0, 84.0, 0), lcsc="C17414")
 add("Q1", "Transistor_BJT:Q_NPN_EBC", "2N3904", "Package_TO_SOT_THT:TO-92_Inline",
     {"1": "GND", "2": "Q1_B", "3": "AMP_SD"}, sch=(68, 128, 0), pcb=(96.0, 82.0, 0))
 
@@ -244,38 +255,57 @@ add("Q1", "Transistor_BJT:Q_NPN_EBC", "2N3904", "Package_TO_SOT_THT:TO-92_Inline
 add("U2", "SynthMachine:TPA6138A2", "TPA6138A2PWR", "Package_SO:TSSOP-14_4.4x5mm_P0.65mm",
     {"14": "GND", "13": "HP_INL", "1": "GND", "2": "HP_INR", "5": "HP_MUTE", "11": None, "9": "+3V3",
      "12": "HP_L", "3": "HP_R", "8": "HP_CP", "7": "HP_CN", "6": "HP_VSS", "4": "GND", "10": "GND"},
-    sch=(146, 128, 0), pcb=(23.0, 84.0, 0),
+    sch=(146, 128, 0), pcb=(23.0, 84.0, 0), lcsc="C183097",
     desc="TI TPA6138A2 40mW DirectPath stereo headphone amplifier, TSSOP-14, 3.3V")
 HP_COL = {"L": 21.0, "R": 25.0}
 for ch, y_s in (("L", 122), ("R", 134)):
     col = HP_COL[ch]
     # input caps stand vertical (rot 270 -> pad 1 on top) so the audio traces can drop straight in
     add("C%d" % (7 if ch == "L" else 8), "Device:C", "1u", C_SMD, {"1": "AUDIO_" + ch, "2": "HP_IN%s_C" % ch},
-        sch=(108, y_s, 90), pcb=(col, 65.5, 270))
+        sch=(108, y_s, 90), pcb=(col, 65.5, 270), lcsc="C28323")
     add("R%d" % (8 if ch == "L" else 10), "Device:R", "10k", R_SMD, {"1": "HP_IN%s_C" % ch, "2": "HP_IN" + ch},
-        sch=(116, y_s, 90), pcb=(col, 68.5, 0))
+        sch=(116, y_s, 90), pcb=(col, 68.5, 0), lcsc="C17414")
     add("R%d" % (9 if ch == "L" else 11), "Device:R", "10k", R_SMD, {"1": "HP_IN" + ch, "2": "HP_" + ch},
-        sch=(124, y_s, 90), pcb=(col, 71.0, 0))
+        sch=(124, y_s, 90), pcb=(col, 71.0, 0), lcsc="C17414")
     add("C%d" % (9 if ch == "L" else 10), "Device:C", "47p", C_SMD, {"1": "HP_IN" + ch, "2": "HP_" + ch},
-        sch=(132, y_s, 90), pcb=(col, 73.5, 0))
-add("C11", "Device:C", "1u", C_SMD, {"1": "HP_CP", "2": "HP_CN"}, sch=(166, 122, 90), pcb=(21.0, 76.0, 0))
-add("C12", "Device:C", "1u", C_SMD, {"1": "HP_VSS", "2": "GND"}, sch=(172, 122, 90), pcb=(25.0, 76.0, 0))
-add("C13", "Device:C", "2u2", C_SMD, {"1": "+3V3", "2": "GND"}, sch=(178, 122, 90), pcb=(21.0, 78.5, 0))
-add("R12", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "HP_MUTE"}, sch=(184, 122, 90), pcb=(25.0, 78.5, 0))
+        sch=(132, y_s, 90), pcb=(col, 73.5, 0), lcsc="C14857")
+add("C11", "Device:C", "1u", C_SMD, {"1": "HP_CP", "2": "HP_CN"}, sch=(166, 122, 90), pcb=(21.0, 76.0, 0), lcsc="C28323")
+add("C12", "Device:C", "1u", C_SMD, {"1": "HP_VSS", "2": "GND"}, sch=(172, 122, 90), pcb=(25.0, 76.0, 0), lcsc="C28323")
+add("C13", "Device:C", "10u", C_SMD, {"1": "+3V3", "2": "GND"}, sch=(178, 122, 90), pcb=(21.0, 78.5, 0), lcsc="C15850")
+add("R12", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "HP_MUTE"}, sch=(184, 122, 90), pcb=(25.0, 78.5, 0), lcsc="C17407")
 
 # Hand-routed nets, locked before the autorouter runs (see route.py).  Endpoints are
 # either (x, y) in mm or ("REF", "pad") resolved to that pad's centre.
 # Seed line out (U1.18/19, left column) -> amp header on F.Cu, nested L shapes;
 # same pins -> headphone amp input caps on B.Cu, via up next to the cap.
 PREROUTES = [
-    ("AUDIO_L", "F.Cu", [("U1", "18"), (86.0, None), (86.0, "A1:6"), ("A1", "6")]),
-    ("AUDIO_R", "F.Cu", [("U1", "19"), (84.5, None), (84.5, "A1:3"), ("A1", "3")]),
+    ("AUDIO_L", "F.Cu", [("U1", "18"), (86.0, None), (86.0, 13.5), (62.5, 13.5), (62.5, "C16:1"), ("C16", "1")]),
+    ("AUDIO_R", "F.Cu", [("U1", "19"), (84.5, None), (84.5, 26.5), (62.5, 26.5), (62.5, "C17:1"), ("C17", "1")]),
     ("AUDIO_L", "B.Cu", [("U1", "18"), (87.5, None), (87.5, 60.7), (21.0, 60.7), (21.0, 62.4)]),
     ("AUDIO_L", "VIA", (21.0, 62.4)),
     ("AUDIO_L", "F.Cu", [(21.0, 62.4), ("C7", "1")]),
     ("AUDIO_R", "B.Cu", [("U1", "19"), (88.5, None), (88.5, 61.5), (25.0, 61.5), (25.0, 62.9)]),
     ("AUDIO_R", "VIA", (25.0, 62.9)),
     ("AUDIO_R", "F.Cu", [(25.0, 62.9), ("C8", "1")]),
+    # MAX98306 right-side fan-out (pins top->bottom: 14 13 12 11 10 9 8).  The 0.4 mm pitch
+    # pads take 0.2 mm stubs only, so the four speaker outputs go straight into vias and run
+    # as a 0.3 mm bus on B.Cu down to the ferrite beads; PVDD pins go to the decoupling caps.
+    ("SPK_LN", "F.Cu", [("U3", "14"), (75.0, None), (76.5, 17.0)], 0.2),
+    ("SPK_LN", "VIA", (76.5, 17.0)),
+    ("SPK_LN", "B.Cu", [(76.5, 17.0), (83.4, 17.0), (83.4, 56.5), (72.0, 56.5), ("FB4", "1")], 0.3),
+    ("SPK_LP", "F.Cu", [("U3", "13"), (75.6, None), (77.3, 18.2)], 0.2),
+    ("SPK_LP", "VIA", (77.3, 18.2)),
+    ("SPK_LP", "B.Cu", [(77.3, 18.2), (82.6, 18.2), (82.6, 52.5), (72.0, 52.5), ("FB3", "1")], 0.3),
+    ("+5V", "F.Cu", [("U3", "12"), ("C14", "1")], 0.2),
+    ("+5V", "F.Cu", [("U3", "11"), (79.0, None), (80.3, "C15:1"), ("C15", "1")], 0.2),
+    ("+5V", "F.Cu", [("C14", "1"), ("C15", "1")], 0.3),
+    ("SPK_RP", "F.Cu", [("U3", "10"), (75.6, None), (77.3, 21.4)], 0.2),
+    ("SPK_RP", "VIA", (77.3, 21.4)),
+    ("SPK_RP", "B.Cu", [(77.3, 21.4), (81.8, 21.4), (81.8, 48.5), (72.0, 48.5), ("FB2", "1")], 0.3),
+    ("SPK_RN", "F.Cu", [("U3", "9"), (75.0, None), (76.5, 22.6)], 0.2),
+    ("SPK_RN", "VIA", (76.5, 22.6)),
+    ("SPK_RN", "B.Cu", [(76.5, 22.6), (81.0, 22.6), (81.0, 44.5), (72.0, 44.5), ("FB1", "1")], 0.3),
+    ("GND", "F.Cu", [("U3", "8"), (None, 22.4), (72.0, 22.4), (72.0, 21.0)], 0.2),   # into the exposed pad
 ]
 PREROUTE_WIDTH = 0.3
 
@@ -415,7 +445,16 @@ TPA6138A2_SYMBOL = build_box_symbol(
     "TPA6138A2", "Package_SO:TSSOP-14_4.4x5mm_P0.65mm",
     "TI TPA6138A2 DirectPath stereo headphone amplifier, adjustable gain, TSSOP-14",
     "https://www.ti.com/lit/ds/symlink/tpa6138a2.pdf")
-PROJECT_SYMBOLS = {"DaisySeed": DAISY_SEED_SYMBOL, "TPA6138A2": TPA6138A2_SYMBOL}
+MAX98306_SYMBOL = build_box_symbol(
+    "MAX98306",
+    [("3", "INL+", "input"), ("4", "INL-", "input"), ("7", "INR+", "input"), ("6", "INR-", "input"),
+     ("5", "GAIN", "input"), ("2", "~{SHDN}", "input"), ("11", "PVDD", "power_in"), ("12", "PVDD", "power_in")],
+    [("13", "OUTL+", "output"), ("14", "OUTL-", "output"), ("10", "OUTR+", "output"), ("9", "OUTR-", "output"),
+     ("1", "PGND", "power_in"), ("8", "PGND", "power_in"), ("15", "EP", "power_in")],
+    "MAX98306", "Package_DFN_QFN:TDFN-14-1EP_3x3mm_P0.4mm_EP1.78x2.35mm_ThermalVias",
+    "Analog Devices MAX98306 stereo 3.7W class-D amplifier, TDFN-14 EP",
+    "https://www.analog.com/media/en/technical-documentation/data-sheets/MAX98306.pdf")
+PROJECT_SYMBOLS = {"DaisySeed": DAISY_SEED_SYMBOL, "TPA6138A2": TPA6138A2_SYMBOL, "MAX98306": MAX98306_SYMBOL}
 
 # ---------------------------------------------------------------------------
 # Footprints (project library)
@@ -549,6 +588,8 @@ def sch_symbol_instance(p, root_uuid, pins, ref_prop_pos):
     rx, ry = ref_prop_pos
     props = [("Reference", p.ref, rx, ry, False), ("Value", p.value, rx, ry + 1.27, False),
              ("Footprint", p.footprint, X, Y, True), ("Datasheet", "~", X, Y, True), ("Description", p.desc, X, Y, True)]
+    if getattr(p, "lcsc", ""):
+        props.append(("LCSC", p.lcsc, X, Y, True))
     for k, v, x, y, hide in props:
         lines.append('    (property "%s" "%s" (at %s %s 0) (effects (font (size 1.27 1.27)) (justify left)%s))'
                      % (k, v.replace('"', "'"), fmt(x), fmt(y), " (hide yes)" if hide else ""))
@@ -642,7 +683,7 @@ def write_schematic():
         ("POTS: panel-mount 10k linear pots wired to 3-pin headers: 1 = +3V3A, 2 = wiper -> A0..A4, 3 = AGND.", 78, 32),
         ("POWER: USB-C only. VBUS -> 2A polyfuse -> +5V rail for Seed VIN and the amp. 5.1k CC pull-downs advertise a 1.5A sink.", 20, 88),
         ("USB-C data to D29/D30 = Daisy 'external' USB. In firmware use MidiUsbTransport::Config::EXTERNAL.", 20, 90),
-        ("AMP: Adafruit #987 breakout on a 1x9 header, single-ended inputs (L-/R- to GND). Speaker outputs come back via J4 -> ferrite + 220p EMI filter -> JST-PH.", 120, 90),
+        ("AMP: MAX98306 on board, single-ended inputs (1u caps, - inputs to GND). Gain: R13 100k to PVDD = 9 dB, JP1 straps GAIN to GND (18 dB) or PVDD (12 dB). Outputs -> ferrite + 220p EMI filter -> JST-PH.", 120, 90),
         ("Outputs are bridge-tied: NO series caps on the speakers, never join L- and R-.", 120, 92),
         ("HEADPHONES: TPA6138A2 (gain -1, ground-centred output, no output caps) drives the jack. TN contact = plug detect (HP_DET). Q1 pulls the speaker amp SD low when plugged. D11 = speaker mute, D13 reads HP_DET, D14 = headphone mute (pulled up).", 20, 118),
         ("EXPANSION: spare Seed GPIO/ADC + 3V3/5V/GND for a future display, encoder, MIDI DIN, etc.", 200, 34),
@@ -745,7 +786,8 @@ def write_pcb(root_uuid):
     for (ref, netname, label, px) in POTS:
         text(label, px, POT_Y - 5, 1.2)
     text("USB-C MIDI/5V", 114, 12, 1.0)
-    text("AMP (Adafruit 987)", 72, 3, 1.2)
+    text("AMP MAX98306", 72, 8, 1.2)
+    text("GAIN", 76.5, 33, 0.8)
     text("SPK L", 72, 71, 1.0)
     text("SPK R", 82, 71, 1.0)
     text("HP", 10, 67.5, 1.2)
@@ -770,22 +812,26 @@ def write_pcb(root_uuid):
     # Design rules / net classes (the autorouter reads these from the DSN export)
     try:
         ds = board.GetDesignSettings()
-        ds.m_MinClearance = mm(0.2)
-        ds.m_TrackMinWidth = mm(0.25)
+        ds.m_MinClearance = mm(0.15)      # 0.4 mm pitch TDFN pads need 0.2 track / 0.15 clearance
+        ds.m_TrackMinWidth = mm(0.15)
         ds.m_ViasMinSize = mm(0.6)
-        ds.m_MinThroughDrill = mm(0.3)
+        ds.m_MinThroughDrill = mm(0.2)   # the TDFN thermal vias are 0.2 mm; JLC/PCBWay allow 0.2 on 2-layer
         ns = ds.m_NetSettings
         dflt = ns.GetDefaultNetclass()
-        dflt.SetClearance(mm(0.2)); dflt.SetTrackWidth(mm(0.25)); dflt.SetViaDiameter(mm(0.7)); dflt.SetViaDrill(mm(0.35))
+        dflt.SetClearance(mm(0.15)); dflt.SetTrackWidth(mm(0.2)); dflt.SetViaDiameter(mm(0.7)); dflt.SetViaDrill(mm(0.35))
         pwr = pcbnew.NETCLASS("Power")
         pwr.SetClearance(mm(0.2)); pwr.SetTrackWidth(mm(0.6)); pwr.SetViaDiameter(mm(0.9)); pwr.SetViaDrill(mm(0.5))
         ns.SetNetclass("Power", pwr)
         usb = pcbnew.NETCLASS("USB_Power")   # narrower so it can escape the USB-C's 0.5 mm pitch pads
         usb.SetClearance(mm(0.2)); usb.SetTrackWidth(mm(0.4)); usb.SetViaDiameter(mm(0.8)); usb.SetViaDrill(mm(0.4))
         ns.SetNetclass("USB_Power", usb)
+        spk = pcbnew.NETCLASS("Speaker")     # amp pins -> ferrite beads: pad-limited, short
+        spk.SetClearance(mm(0.15)); spk.SetTrackWidth(mm(0.3)); spk.SetViaDiameter(mm(0.8)); spk.SetViaDrill(mm(0.4))
+        ns.SetNetclass("Speaker", spk)
+        ns.SetNetclassPatternAssignment("SPK_*", "Speaker")
         # GND stays in the default class: the tracks only guarantee connectivity, the pours carry current
         # +3V3 / +3.3VA carry tens of mA at most and have to reach TSSOP pads: default class
-        for pat in ("+5V", "+5V_SW", "SPK_*", "SPKF_*"):
+        for pat in ("+5V", "+5V_SW", "SPKF_*"):
             ns.SetNetclassPatternAssignment(pat, "Power")
         ns.SetNetclassPatternAssignment("VBUS", "USB_Power")
         print("netclasses set")
@@ -814,7 +860,7 @@ def write_project_files():
         f.write('(fp_lib_table (version 7)\n  (lib (name "SynthMachine")(type "KiCad")(uri "${KIPRJMOD}/SynthMachine.pretty")(options "")(descr "Project footprints"))\n)\n')
     pro = {
         "meta": {"filename": PROJECT + ".kicad_pro", "version": 1},
-        "board": {"design_settings": {"defaults": {}, "rules": {"min_clearance": 0.2, "min_track_width": 0.25, "min_via_diameter": 0.6, "min_via_annular_width": 0.15},
+        "board": {"design_settings": {"defaults": {}, "rules": {"min_clearance": 0.15, "min_track_width": 0.15, "min_via_diameter": 0.4, "min_via_annular_width": 0.1, "min_through_hole_diameter": 0.2},
                                       "rule_severities": {"starved_thermal": "warning"}}},
         "libraries": {"pinned_footprint_libs": [], "pinned_symbol_libs": []},
         "net_settings": {"classes": [{"name": "Default", "clearance": 0.2, "track_width": 0.3, "via_diameter": 0.8, "via_drill": 0.4,

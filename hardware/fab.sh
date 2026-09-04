@@ -19,8 +19,29 @@ rm -rf "$OUT"; mkdir -p "$GERB"
 (cd "$GERB" && zip -q -r "../synth_machine_gerbers.zip" .)
 
 "$CLI" pcb export pos --format csv --units mm --side both -o "$OUT/synth_machine_pos.csv" "$HERE/synth_machine.kicad_pcb"
-"$CLI" sch export bom --fields "Reference,Value,Footprint,QUANTITY" --labels "Refs,Value,Footprint,Qty" \
-  --group-by "Value,Footprint" -o "$OUT/synth_machine_bom.csv" "$HERE/synth_machine.kicad_sch"
+"$CLI" sch export bom --fields "Reference,Value,Footprint,QUANTITY,LCSC" --labels "Refs,Value,Footprint,Qty,LCSC" \
+  --group-by "Value,Footprint,LCSC" --ref-range-delimiter "" -o "$OUT/synth_machine_bom.csv" "$HERE/synth_machine.kicad_sch"
+# JLCPCB SMT assembly files: BOM (only parts with an LCSC number) and CPL (SMD footprints, top side)
+"$CLI" pcb export pos --format csv --units mm --side front --smd-only -o "$OUT/_smd_pos.csv" "$HERE/synth_machine.kicad_pcb"
+python3 - "$OUT" <<'PYEOF'
+import csv, sys, os
+out = sys.argv[1]
+rows = list(csv.DictReader(open(os.path.join(out, "synth_machine_bom.csv"))))
+with open(os.path.join(out, "jlcpcb_bom.csv"), "w", newline="") as f:
+    w = csv.writer(f); w.writerow(["Comment", "Designator", "Footprint", "LCSC Part #"])
+    for r in rows:
+        if r.get("LCSC"):
+            w.writerow([r["Value"], r["Refs"], r["Footprint"].split(":")[-1], r["LCSC"]])
+assembled = {ref.strip() for r in rows if r.get("LCSC") for ref in r["Refs"].replace("-", ",").split(",")}
+pos = list(csv.DictReader(open(os.path.join(out, "_smd_pos.csv"))))
+with open(os.path.join(out, "jlcpcb_cpl.csv"), "w", newline="") as f:
+    w = csv.writer(f); w.writerow(["Designator", "Mid X", "Mid Y", "Layer", "Rotation"])
+    for p in pos:
+        if p["Ref"] in assembled:
+            w.writerow([p["Ref"], p["PosX"], p["PosY"], "Top" if p["Side"] == "top" else "Bottom", p["Rot"]])
+os.remove(os.path.join(out, "_smd_pos.csv"))
+print("jlcpcb_bom.csv / jlcpcb_cpl.csv written")
+PYEOF
 # 1:1 test print on 11x17 (tabloid, landscape): outline, fab layer with pad outlines and actual
 # hole sizes, board shifted to the centre of the page so printer margins never clip it.
 KPY=/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3
