@@ -21,5 +21,10 @@ rm -rf "$OUT"; mkdir -p "$GERB"
 "$CLI" pcb export pos --format csv --units mm --side both -o "$OUT/synth_machine_pos.csv" "$HERE/synth_machine.kicad_pcb"
 "$CLI" sch export bom --fields "Reference,Value,Footprint,QUANTITY" --labels "Refs,Value,Footprint,Qty" \
   --group-by "Value,Footprint" -o "$OUT/synth_machine_bom.csv" "$HERE/synth_machine.kicad_sch"
+# 1:1 test print on 11x17 (tabloid): outline, fab layer with pad outlines and actual hole sizes
+sed 's/(paper "[^"]*"[^)]*)/(paper "USLedger" portrait)/' "$HERE/synth_machine.kicad_pcb" > "$OUT/_ledger.kicad_pcb"
+"$CLI" pcb export pdf --layers "Edge.Cuts,F.Fab,Cmts.User" --sketch-pads-on-fab-layers --exclude-value \
+  --black-and-white --drill-shape-opt 2 --scale 1 --mode-single -o "$OUT/synth_machine_1to1_11x17.pdf" "$OUT/_ledger.kicad_pcb"
+rm -f "$OUT/_ledger.kicad_pcb"
 echo "fab package in $OUT"
 ls -la "$OUT" "$GERB"
