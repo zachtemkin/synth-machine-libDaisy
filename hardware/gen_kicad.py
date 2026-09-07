@@ -765,23 +765,28 @@ def write_pcb(root_uuid):
     arc(R, R, 180, 270)        # top-left
 
     # Silkscreen labels
-    def text(txt, x, y, size=2.0, layer=pcbnew.F_SilkS):
+    def text(txt, x, y, size=2.0, layer=pcbnew.F_SilkS, angle=0):
         t = pcbnew.PCB_TEXT(board)
         t.SetText(txt)
         t.SetPosition(pcbnew.VECTOR2I(mm(x), mm(y)))
         t.SetTextSize(pcbnew.VECTOR2I(mm(size), mm(size)))
         t.SetTextThickness(mm(size * 0.15))
         t.SetLayer(layer)
+        if angle:
+            try:
+                t.SetTextAngleDegrees(angle)
+            except AttributeError:
+                t.SetTextAngle(pcbnew.EDA_ANGLE(angle, pcbnew.DEGREES_T))
         board.Add(t)
 
-    text("synthMachine carrier v0.3", 50, 80, 2.0)
+    text("synthMachine carrier v0.3", 50, 75, 2.0)
     for name, (kx_, ky_) in KEY_POS.items():
         if kx_ < 10:
-            text(name, 17.0, ky_, 1.0)          # left column: label right of the diode
+            text(name, 10.0, ky_, 1.0, angle=90)   # left column: between header and diode, reads bottom-up (baseline at the edge)
         else:
             text(name, kx_, 83.5, 1.0)          # bottom row: label above the diode
     for i, (ref, netname, label) in enumerate(POTS):
-        text(label, 91.0, POT_Y0 + i * POT_PITCH - 5.0, 0.8)
+        text(label, 91.3, POT_Y0 + i * POT_PITCH - 2.5, 0.8, angle=270)   # reads top-down, baseline at the right edge
     text("USB-C", 16, 10.0, 1.0)
     text("HP", 78, 21.0, 1.0)
     text("SPK L", 85, U3Y - 6.0, 0.9)
