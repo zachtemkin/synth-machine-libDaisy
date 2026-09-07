@@ -9,4 +9,3 @@ CP1-3515N-ND,SJ1-3515N,2,J7 + spare,CUI 3.5mm switched stereo jack
 MF-R250-ND,MF-R250,2,F1 + spare,Bourns 2.5A hold radial PTC fuse
 P124219-ND,EEU-FR1A471,2,C1 + spare,"Panasonic 470uF 10V radial 8mm, 3.5mm pitch"
 PDB181-E420K-103B-ND,PDB181-E420K-103B,5,panel pots,"Bourns 16mm 10k linear pot, solder lugs"
-1528-1847-ND,Adafruit 1669,1,speakers,Adafruit stereo enclosed speaker set 3W 4 ohm (JST-PH leads)
