@@ -306,6 +306,10 @@ PREROUTES = [
     ("+5V", "F.Cu", [("U3", "12"), ("C14", "1")], 0.2),
     ("+5V", "F.Cu", [("U3", "11"), (U3X + 4.5, None), (U3X + 5.8, "C15:1"), ("C15", "1")], 0.2),
     ("+5V", "F.Cu", [("C14", "1"), ("C15", "1")], 0.3),
+    # the decoupling-cap +5V island is boxed in by the speaker stubs; give the autorouter a
+    # 0.5 mm exit to the open area right of the caps
+    ("+5V", "F.Cu", [("C14", "1"), (None, U3Y - 2.4), (70.5, U3Y - 2.4)], 0.5),
+    ("+5V", "VIA", (70.5, U3Y - 2.4)),      # ...and a via so the feed can arrive on B.Cu
     ("SPK_RP", "F.Cu", [("U3", "10"), (U3X + 3.6, None), (U3X + 5.4, U3Y + 2.6), (U3X + 5.4, FB_ROWS["RP"]), ("FB3", "1")], 0.2),
     ("SPK_RN", "F.Cu", [("U3", "9"), (U3X + 3.0, None), (U3X + 4.8, U3Y + 3.0), (U3X + 4.8, FB_ROWS["RN"]), ("FB4", "1")], 0.2),
     ("GND", "F.Cu", [("U3", "8"), (None, U3Y + 2.4), (U3X, U3Y + 2.4), (U3X, U3Y + 1.0)], 0.2),   # into the exposed pad
@@ -784,7 +788,7 @@ def write_pcb(root_uuid):
         if kx_ < 10:
             text(name, 10.0, ky_, 1.0, angle=90)   # left column: between header and diode, reads bottom-up (baseline at the edge)
         else:
-            text(name, kx_, 83.5, 1.0)          # bottom row: label above the diode
+            text(name, kx_, 87.0, 1.0)          # bottom row: label just above the diode
     for i, (ref, netname, label) in enumerate(POTS):
         text(label, 91.3, POT_Y0 + i * POT_PITCH - 2.5, 0.8, angle=270)   # reads top-down, baseline at the right edge
     text("USB-C", 16, 10.0, 1.0)
