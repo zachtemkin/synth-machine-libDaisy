@@ -1,11 +1,11 @@
 Digi-Key Part Number,Manufacturer Part Number,Quantity,Customer Reference,Description
-455-2247-ND,B2B-XH-A(LF)(SN),20,K1-K19 + spare,"JST XH 2-pin header, vertical (buttons)"
-455-2248-ND,B3B-XH-A(LF)(SN),6,J10-J14 + spare,"JST XH 3-pin header, vertical (pots)"
-455-1704-ND,B2B-PH-K-S(LF)(SN),3,"J5,J6 + spare",JST PH 2-pin socket for the Adafruit speaker plugs
-S7018-ND,PPTC201LFBN-RC,2,U1 sockets,"1x20 female header, 2 per Seed"
-S1011EC-40-ND,PRPC040SAAN-RC,1,J8,1x40 breakaway pin header (need 12)
-CP1-3515N-ND,SJ1-3515N,2,J7 + spare,CUI 3.5mm switched stereo jack
-2073-USB4105-GF-ACT-ND,USB4105-GF-A,2,J1 + spare,"GCT USB-C 2.0 receptacle, 16-pin"
-MF-R250-ND,MF-R250,2,F1 + spare,Bourns 2.5A hold radial PTC fuse
-P124219-ND,EEU-FR1A471,2,C1 + spare,"Panasonic 470uF 10V radial 8mm, 3.5mm pitch"
-PDB181-E420K-103B-ND,PDB181-E420K-103B,5,panel pots,"Bourns 16mm 10k linear pot, solder lugs"
+455-2247-ND,B2B-XH-A(LF)(SN),40,K1-K19 x2 + spares,"JST XH 2-pin header, vertical (buttons)"
+455-2248-ND,B3B-XH-A(LF)(SN),12,J10-J14 x2 + spares,"JST XH 3-pin header, vertical (pots)"
+455-1704-ND,B2B-PH-K-S(LF)(SN),5,"J5,J6 x2 + spare",JST PH 2-pin socket for the Adafruit speaker plugs
+S7018-ND,PPTC201LFBN-RC,4,U1 sockets x2,"1x20 female header, 2 per Seed"
+S7010-ND,PPTC121LFBN-RC,3,J8 x2 + spare,1x12 female header (expansion)
+CP1-3515N-ND,SJ1-3515N,3,J7 x2 + spare,CUI 3.5mm switched stereo jack
+2073-USB4105-GF-ACT-ND,USB4105-GF-A,3,J1 x2 + spare,"GCT USB-C 2.0 receptacle, 16-pin"
+MF-R250-ND,MF-R250,3,F1 x2 + spare,Bourns 2.5A hold radial PTC fuse
+P124219-ND,EEU-FR1A471,3,C1 x2 + spare,"Panasonic 470uF 10V radial 8mm, 3.5mm pitch"
+PDB181-E420K-103B-ND,PDB181-E420K-103B,10,panel pots x2,"Bourns 16mm 10k linear pot, solder lugs"
