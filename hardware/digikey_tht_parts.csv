@@ -1,14 +1,15 @@
 Digi-Key Part Number,Manufacturer Part Number,Quantity,Customer Reference,Description
-36-3534-ND,3534,40,SW1-SW19 (2 each + spares),Keystone 3534 quick-fit receptacle 0.110in vertical
-1N4148FS-ND,1N4148,20,D1-D18 + spares,1N4148 diode DO-35
-2N3904FS-ND,2N3904,2,Q1 + spare,2N3904 NPN TO-92
-P124219-ND,EEU-FR1A471,2,C1 + spare,470uF 10V radial 8mm dia 3.5mm pitch
-2944666671,2944666671,5,FB1-FB4 + spare,Fair-Rite 1.02k axial ferrite bead (bulk; search by MPN)
-455-1704-ND,B2B-PH-K-S(LF)(SN),3,J5 J6 + spare,JST PH 2-pin socket for the speaker plugs
-CP1-3515N-ND,SJ1-3515N,2,J7 + spare,CUI 3.5mm switched headphone jack
-2073-USB4105-GF-ACT-ND,USB4105-GF-A,2,J1 + spare,GCT USB-C 2.0 receptacle 16-pin
+455-2247-ND,B2B-XH-A(LF)(SN),20,K1-K19 + spare,"JST XH 2-pin header, vertical (buttons)"
+455-2248-ND,B3B-XH-A(LF)(SN),6,J10-J14 + spare,"JST XH 3-pin header, vertical (pots)"
+455-2266-ND,XHP-2,22,button leads,JST XH 2-pin housing (or buy pre-crimped XH leads)
+455-2267-ND,XHP-3,6,pot leads,JST XH 3-pin housing
+455-1135-1-ND,SXH-001T-P0.6,70,XH contacts,"JST XH crimp contact 22-28 AWG, cut tape (or pre-crimped leads)"
+455-1704-ND,B2B-PH-K-S(LF)(SN),3,"J5,J6 + spare",JST PH 2-pin socket for the Adafruit speaker plugs
+S7018-ND,PPTC201LFBN-RC,2,U1 sockets,"1x20 female header, 2 per Seed"
+S1011EC-40-ND,PRPC040SAAN-RC,1,J8,1x40 breakaway pin header (need 12)
+CP1-3515N-ND,SJ1-3515N,2,J7 + spare,CUI 3.5mm switched stereo jack
+2073-USB4105-GF-ACT-ND,USB4105-GF-A,2,J1 + spare,"GCT USB-C 2.0 receptacle, 16-pin"
 MF-R250-ND,MF-R250,2,F1 + spare,Bourns 2.5A hold radial PTC fuse
-S7018-ND,PPTC201LFBN-RC,2,U1 sockets,1x20 female header for the Daisy Seed
-S1011EC-40-ND,PRPC040SAAN-RC,1,J8 J10-J14,1x40 breakaway pin header (cut into 1x12 and 5x 1x3)
-PDB181-E420K-103B-ND,PDB181-E420K-103B,5,panel pots,Bourns 16mm 10k linear panel pot solder lugs
-1528-1847-ND,1669,1,speakers,Adafruit stereo enclosed speaker set 3W 4 ohm
+P124219-ND,EEU-FR1A471,2,C1 + spare,"Panasonic 470uF 10V radial 8mm, 3.5mm pitch"
+PDB181-E420K-103B-ND,PDB181-E420K-103B,5,panel pots,"Bourns 16mm 10k linear pot, solder lugs"
+1528-1847-ND,Adafruit 1669,1,speakers,Adafruit stereo enclosed speaker set 3W 4 ohm (JST-PH leads)
