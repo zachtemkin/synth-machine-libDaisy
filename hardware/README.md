@@ -56,7 +56,7 @@ for the amp-to-bead speaker lines.
 | Speakers | FB1..FB4 0805 beads + C2..C5 220p, J5/J6 JST-PH | MAX98306 datasheet EMI filter, then the JST-PH sockets that match the Adafruit speaker plugs. |
 | Headphone amp | U2 TPA6138A2PWR (TSSOP-14), C7/C8 1u, R8..R11 10k, C9/C10 47p, C11/C12 1u, C13 10u, R12 100k | DirectPath: ground-centred output, no output caps, 40 mW into 32 ohm from 3V3. Unity gain (raise R9/R11 for more). Mute active-low, pulled up by R12, D14 can mute it. |
 | Headphone jack | J7 CUI SJ1-3515N on the top edge, R3 100k, R4 10k, R5/R6 10k, Q1 MMBT3904 | Tip/ring from U2. The NC switch contact is the plug detect: near 0 V unplugged, 3V3 plugged. Q1 then mutes the speaker amp. D11 = firmware speaker mute, D13 reads HP_DET. |
-| Expansion | J8 1x12 female socket | HP_MUTE, D26, D27, A5..A8, HP_DET, MUTE, 3V3, 5V, GND. |
+| Expansion | J8 1x12, fit a female socket | HP_MUTE, D26, D27, A5..A8, HP_DET, MUTE, 3V3, 5V, GND. |
 | Mounting | H1..H4 M3, 5 mm in from each corner | |
 
 ## Wiring the panel

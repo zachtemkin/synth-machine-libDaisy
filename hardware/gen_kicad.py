@@ -271,8 +271,8 @@ add("C13", "Device:C", "10u", C_SMD, {"1": "+3V3", "2": "GND"}, sch=(178, 122, 9
 add("R12", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "HP_MUTE"}, sch=(184, 122, 90), pcb=(66.0, 36.0, 0), lcsc="C149504")
 
 # --- Expansion header (spare Seed pins) -------------------------------------
-add("J8", "Connector_Generic:Conn_01x12", "Expansion (1x12 female socket)",
-    "Connector_PinSocket_2.54mm:PinSocket_1x12_P2.54mm_Vertical",
+add("J8", "Connector_Generic:Conn_01x12", "Expansion",
+    "Connector_PinHeader_2.54mm:PinHeader_1x12_P2.54mm_Vertical",
     {"1": "HP_MUTE", "2": "EXP_D26", "3": "EXP_D27", "4": "EXP_A5", "5": "EXP_A6",
      "6": "EXP_A7", "7": "EXP_A8", "8": "HP_DET", "9": "MUTE", "10": "+3V3", "11": "+5V", "12": "GND"},
     sch=(200, 40, 0), pcb=(36.0, 66.0, 90))

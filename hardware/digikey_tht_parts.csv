@@ -3,7 +3,7 @@ Digi-Key Part Number,Manufacturer Part Number,Quantity,Customer Reference,Descri
 455-2248-ND,B3B-XH-A(LF)(SN),12,J10-J14 x2 + spares,"JST XH 3-pin header, vertical (pots)"
 455-1704-ND,B2B-PH-K-S(LF)(SN),5,"J5,J6 x2 + spare",JST PH 2-pin socket for the Adafruit speaker plugs
 S7018-ND,PPTC201LFBN-RC,4,U1 sockets x2,"1x20 female header, 2 per Seed"
-S7010-ND,PPTC121LFBN-RC,3,J8 x2 + spare,1x12 female header (expansion)
+S7010-ND,PPTC121LFBN-RC,3,J8 x2 + spare,1x12 female socket, solders into the J8 pin-header footprint
 CP1-3515N-ND,SJ1-3515N,3,J7 x2 + spare,CUI 3.5mm switched stereo jack
 2073-USB4105-GF-ACT-ND,USB4105-GF-A,3,J1 x2 + spare,"GCT USB-C 2.0 receptacle, 16-pin"
 MF-R250-ND,MF-R250,3,F1 x2 + spare,Bourns 2.5A hold radial PTC fuse
