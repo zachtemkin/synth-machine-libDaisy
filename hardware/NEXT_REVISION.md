@@ -32,6 +32,13 @@ push-pull like the prototype, with inverted sense.
 
 ## 2. Worth considering
 
+- **ESD protection on the USB-C data lines.** There is none today; the
+  STM32's pins are left to absorb whatever a plug or a finger delivers. A
+  USBLC6-2SC6 (SOT-23-6, low capacitance, LCSC C7519) next to J1: D+ and D-
+  from the connector pass through its I/O pins on the way to the Seed, VBUS
+  on its VBUS pin, GND on GND. Cheap insurance if the synth is plugged and
+  unplugged often or handled by other people; the USB-C port checks out
+  electrically without it.
 - **Panel status LED.** The Seed's onboard LED now shows boot status (solid
   once running, three blinks if entered from DFU), but on the carrier the
   Seed is inside the enclosure. A panel LED on D26 or D27 from the expansion
