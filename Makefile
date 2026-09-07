@@ -40,3 +40,7 @@ DAISYSP_DIR = ../DaisyExamples/DaisySP/
 # Core location, and generic Makefile.
 SYSTEM_FILES_DIR = $(LIBDAISY_DIR)/core
 include $(SYSTEM_FILES_DIR)/Makefile
+
+# Host-side bring-up tool (see tools/README.md)
+tools/midimon: tools/midimon.swift
+	swiftc -O -o $@ $<

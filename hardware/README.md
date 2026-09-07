@@ -146,7 +146,6 @@ a crash leaves them live.
 
 ### Next revision
 
-Give MUTE its own transistor (second MMBT3904, 10k base resistor, collector on
-AMP_SD) and a 10k pull-up from MUTE to +3V3. The two mute sources then become
-independent open-collector pull-downs, firmware can use plain push-pull drive,
-and the speakers default to muted at reset, in DFU mode and after a crash.
+See [NEXT_REVISION.md](NEXT_REVISION.md): the running list of changes for the
+next board spin, starting with a separate transistor and pull-up for MUTE so
+the speakers default to muted and firmware can use plain push-pull drive.

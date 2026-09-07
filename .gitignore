@@ -112,3 +112,6 @@ hardware/fab/
 
 # Per-profile firmware build dirs (make HW=carrier)
 build-*/
+
+# Built bring-up tool (make tools/midimon)
+tools/midimon
