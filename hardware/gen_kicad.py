@@ -143,11 +143,11 @@ dn = 1
 for i, (name, mat) in enumerate(KEYS):
     if i < 10:
         hx, hy, hrot = KEY_LEFT_X, KEY_LEFT_Y0 + i * KEY_LEFT_PITCH, 90
-        dx, dy = 12.0, hy - 1.25
+        dx, dy, drot = 12.0, hy - 1.25, 90          # diode parallel to the header, like the bottom row
         KEY_POS[name] = (hx, hy - 1.25)
     else:
         hx, hy, hrot = KEY_BOT_X0 + (i - 10) * KEY_BOT_PITCH, KEY_BOT_Y, 0
-        dx, dy = hx + 1.25, 89.5
+        dx, dy, drot = hx + 1.25, 89.5, 0
         KEY_POS[name] = (hx + 1.25, hy)
     row, col_i = divmod(i, 7)
     sx, sy = 78 + col_i * 20, 8 + row * 8
@@ -160,7 +160,7 @@ for i, (name, mat) in enumerate(KEYS):
         add("K%d" % (i + 1), "Connector_Generic:Conn_01x02", "%s [c%d r%d] JST-XH" % (name, c, r), XH2_FP,
             {"1": "ROW%d" % r, "2": mid}, sch=(sx, sy, 0), pcb=(hx, hy, hrot))
         add("D%d" % dn, "Device:D", "1N4148W", DIODE_FP,
-            {"2": mid, "1": "COL%d" % c}, sch=(sx + 6, sy, 180), pcb=(dx, dy, 0), lcsc="C81598")
+            {"2": mid, "1": "COL%d" % c}, sch=(sx + 6, sy, 180), pcb=(dx, dy, drot), lcsc="C81598")
         dn += 1
 
 # --- Pots: panel-mount, one JST-XH 3-pin header each, down the right edge ---------------------
@@ -223,9 +223,9 @@ for i, sig in enumerate(["LN", "LP", "RP", "RN"]):
         {"1": "SPKF_" + sig, "2": "GND"}, sch=(150 + i * 8, 106, 0), pcb=(78.0, FB_ROWS[sig], 0), lcsc="C53172")
 JST_FP = "Connector_JST:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical"
 add("J5", "Connector_Generic:Conn_01x02", "Speaker L (JST-PH)", JST_FP,
-    {"1": "SPKF_LP", "2": "SPKF_LN"}, sch=(190, 96, 0), pcb=(87.0, U3Y - 2.0, 0))
+    {"1": "SPKF_LP", "2": "SPKF_LN"}, sch=(190, 96, 0), pcb=(85.0, U3Y - 2.0, 0))
 add("J6", "Connector_Generic:Conn_01x02", "Speaker R (JST-PH)", JST_FP,
-    {"1": "SPKF_RP", "2": "SPKF_RN"}, sch=(190, 106, 0), pcb=(87.0, U3Y + 6.0, 0))
+    {"1": "SPKF_RP", "2": "SPKF_RN"}, sch=(190, 106, 0), pcb=(85.0, U3Y + 6.0, 0))
 
 # --- Headphone jack on the top edge, plug detect mutes the speaker amp ----------------------
 # Tip/ring from U2.  TN is shorted to T while nothing is plugged in, so HP_DET sits at ~0 V
@@ -237,7 +237,7 @@ add("J7", "Connector_Audio:AudioJack3_SwitchTR", "Headphones 3.5mm (CUI SJ1-3515
     {"S": "GND", "T": "HP_L", "R": "HP_R", "TN": "HP_DET", "RN": None},
     sch=(20, 130, 0), pcb=(78.0, 6.1, 270))   # opening faces the top edge
 add("R3", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "HP_DET"}, sch=(36, 126, 0), pcb=(52.0, 32.0, 0), lcsc="C149504")
-add("R4", "Device:R", "10k", R_SMD, {"1": "HP_L", "2": "GND"}, sch=(42, 126, 0), pcb=(83.0, 36.0, 0), lcsc="C17414")
+add("R4", "Device:R", "10k", R_SMD, {"1": "HP_L", "2": "GND"}, sch=(42, 126, 0), pcb=(80.0, 36.0, 0), lcsc="C17414")
 add("R5", "Device:R", "10k", R_SMD, {"1": "HP_DET", "2": "Q1_B"}, sch=(52, 126, 0), pcb=(52.0, 27.0, 0), lcsc="C17414")
 add("R6", "Device:R", "10k", R_SMD, {"1": "MUTE", "2": "Q1_B"}, sch=(58, 126, 0), pcb=(52.0, 29.5, 0), lcsc="C17414")
 add("Q1", "Transistor_BJT:Q_NPN_BEC", "MMBT3904", "Package_TO_SOT_SMD:SOT-23",
@@ -253,29 +253,29 @@ add("U2", "SynthMachine:TPA6138A2", "TPA6138A2PWR", "Package_SO:TSSOP-14_4.4x5mm
      "12": "HP_L", "3": "HP_R", "8": "HP_CP", "7": "HP_CN", "6": "HP_VSS", "4": "GND", "10": "GND"},
     sch=(146, 128, 0), pcb=(83.0, 30.0, 0), lcsc="C183097",
     desc="TI TPA6138A2 40mW DirectPath stereo headphone amplifier, TSSOP-14, 3.3V")
-HP_COL = {"L": 76.0, "R": 72.0}
+HP_COL = {"L": 76.0, "R": 71.0}
 for ch, y_s in (("L", 122), ("R", 134)):
     col = HP_COL[ch]
     # input caps stand vertical (rot 270 -> pad 1 on top) so the audio vias can drop straight in
     add("C%d" % (7 if ch == "L" else 8), "Device:C", "1u", C_SMD, {"1": "AUDIO_" + ch, "2": "HP_IN%s_C" % ch},
         sch=(108, y_s, 90), pcb=(col, 22.5, 270), lcsc="C28323")
     add("R%d" % (8 if ch == "L" else 10), "Device:R", "10k", R_SMD, {"1": "HP_IN%s_C" % ch, "2": "HP_IN" + ch},
-        sch=(116, y_s, 90), pcb=(col, 25.5, 0), lcsc="C17414")
+        sch=(116, y_s, 90), pcb=(col, 26.0, 0), lcsc="C17414")
     add("R%d" % (9 if ch == "L" else 11), "Device:R", "10k", R_SMD, {"1": "HP_IN" + ch, "2": "HP_" + ch},
-        sch=(124, y_s, 90), pcb=(col, 28.0, 0), lcsc="C17414")
+        sch=(124, y_s, 90), pcb=(col, 29.5, 0), lcsc="C17414")
     add("C%d" % (9 if ch == "L" else 10), "Device:C", "47p", C_SMD, {"1": "HP_IN" + ch, "2": "HP_" + ch},
-        sch=(132, y_s, 90), pcb=(col, 30.5, 0), lcsc="C14857")
-add("C11", "Device:C", "1u", C_SMD, {"1": "HP_CP", "2": "HP_CN"}, sch=(166, 122, 90), pcb=(72.0, 33.0, 0), lcsc="C28323")
-add("C12", "Device:C", "1u", C_SMD, {"1": "HP_VSS", "2": "GND"}, sch=(172, 122, 90), pcb=(76.0, 33.0, 0), lcsc="C28323")
-add("C13", "Device:C", "10u", C_SMD, {"1": "+3V3", "2": "GND"}, sch=(178, 122, 90), pcb=(76.0, 35.5, 0), lcsc="C15850")
-add("R12", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "HP_MUTE"}, sch=(184, 122, 90), pcb=(72.0, 35.5, 0), lcsc="C149504")
+        sch=(132, y_s, 90), pcb=(col, 33.0, 0), lcsc="C14857")
+add("C11", "Device:C", "1u", C_SMD, {"1": "HP_CP", "2": "HP_CN"}, sch=(166, 122, 90), pcb=(71.0, 36.5, 0), lcsc="C28323")
+add("C12", "Device:C", "1u", C_SMD, {"1": "HP_VSS", "2": "GND"}, sch=(172, 122, 90), pcb=(76.0, 36.5, 0), lcsc="C28323")
+add("C13", "Device:C", "10u", C_SMD, {"1": "+3V3", "2": "GND"}, sch=(178, 122, 90), pcb=(86.0, 36.0, 0), lcsc="C15850")
+add("R12", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "HP_MUTE"}, sch=(184, 122, 90), pcb=(66.0, 36.0, 0), lcsc="C149504")
 
 # --- Expansion header (spare Seed pins) -------------------------------------
 add("J8", "Connector_Generic:Conn_01x12", "Expansion",
     "Connector_PinHeader_2.54mm:PinHeader_1x12_P2.54mm_Vertical",
     {"1": "HP_MUTE", "2": "EXP_D26", "3": "EXP_D27", "4": "EXP_A5", "5": "EXP_A6",
      "6": "EXP_A7", "7": "EXP_A8", "8": "HP_DET", "9": "MUTE", "10": "+3V3", "11": "+5V", "12": "GND"},
-    sch=(200, 40, 0), pcb=(60.0, 66.0, 90))
+    sch=(200, 40, 0), pcb=(36.0, 66.0, 90))
 
 # --- Mounting holes ----------------------------------------------------------
 for i, (hx, hy) in enumerate([(5, 4), (95, 4), (5, 96), (95, 96)]):
@@ -296,9 +296,9 @@ PREROUTES = [
     ("AUDIO_L", "B.Cu", [("U1", "18"), (31.5, 46.82), (47.5, 46.82), (47.5, 19.4), (76.0, 19.4)]),
     ("AUDIO_L", "VIA", (76.0, 19.4)),
     ("AUDIO_L", "F.Cu", [(76.0, 19.4), ("C7", "1")]),
-    ("AUDIO_R", "B.Cu", [("U1", "19"), (31.5, 49.36), (48.3, 49.36), (48.3, 20.5), (72.0, 20.5)]),
-    ("AUDIO_R", "VIA", (72.0, 20.5)),
-    ("AUDIO_R", "F.Cu", [(72.0, 20.5), ("C8", "1")]),
+    ("AUDIO_R", "B.Cu", [("U1", "19"), (31.5, 49.36), (48.3, 49.36), (48.3, 20.5), (71.0, 20.5)]),
+    ("AUDIO_R", "VIA", (71.0, 20.5)),
+    ("AUDIO_R", "F.Cu", [(71.0, 20.5), ("C8", "1")]),
     # MAX98306 right-side fan-out (pins top->bottom: 14 13 12 11 10 9 8): 0.2 mm stubs from the
     # 0.4 mm pitch pads straight to the ferrite beads / decoupling caps on F.Cu.
     ("SPK_LN", "F.Cu", [("U3", "14"), (U3X + 3.0, None), (U3X + 4.8, U3Y - 3.0), (U3X + 4.8, FB_ROWS["LN"]), ("FB1", "1")], 0.2),
@@ -717,6 +717,8 @@ def write_pcb(root_uuid):
             raise RuntimeError("footprint not found: " + p.footprint)
         fp.SetReference(p.ref)
         fp.SetValue(p.value)
+        if re.match(r"^(H\d+|D\d+|K\d+|J(1|5|6|7|8|10|11|12|13|14))$", p.ref):
+            fp.Reference().SetVisible(False)     # functional silkscreen labels are added separately
         fp.SetPath(pcbnew.KIID_PATH("/" + p.uuid))
         board.Add(fp)
         x, y, rot = p.pcb_at
@@ -777,17 +779,17 @@ def write_pcb(root_uuid):
         if kx_ < 10:
             text(name, 17.0, ky_, 1.0)          # left column: label right of the diode
         else:
-            text(name, kx_, 85.0, 1.0)          # bottom row: label above the diode
+            text(name, kx_, 83.5, 1.0)          # bottom row: label above the diode
     for i, (ref, netname, label) in enumerate(POTS):
-        text(label, 90.6, POT_Y0 + i * POT_PITCH - 5.0, 0.8)
-    text("USB-C", 15, 9.6, 1.0)
+        text(label, 91.0, POT_Y0 + i * POT_PITCH - 5.0, 0.8)
+    text("USB-C", 16, 10.0, 1.0)
     text("HP", 78, 21.0, 1.0)
-    text("SPK L", 87, U3Y - 6.0, 0.9)
-    text("SPK R", 87, U3Y + 10.0, 0.9)
+    text("SPK L", 85, U3Y - 6.0, 0.9)
+    text("SPK R", 85, U3Y + 10.0, 0.9)
     text("AMP", U3X, U3Y - 5.0, 0.9)
     text("GAIN", U3X + 4.5, U3Y + 11.5, 0.8)
-    text("HP AMP", 83, 25.5, 0.9)
-    text("EXP", 55, 66, 1.0)
+    text("HP AMP", 83, 25.0, 0.9)
+    text("EXP", 31, 66, 1.0)
 
     # GND pours (unfilled; press B in pcbnew)
     for layer in (pcbnew.B_Cu, pcbnew.F_Cu):
