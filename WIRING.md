@@ -100,6 +100,9 @@ the audio callback starts, then releases it. Flash with the Seed in DFU mode
 make program-dfu
 ```
 
+Then press RESET on the Seed: it does not bring USB up after the DFU handoff,
+so MIDI only appears after a reset.
+
 `SetSpeakersEnabled(false)` can be used as a software mute if you ever want one.
 
 The carrier board (`hardware/`) wires D11 differently and adds a headphone jack

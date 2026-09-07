@@ -4,18 +4,33 @@ TARGET = synthMachine
 # Sources
 CPP_SOURCES = synthMachine.cpp
 
-# Hardware profile. `make` builds for the breadboard prototype (WIRING.md);
-# `make HW=carrier` builds for the carrier board (hardware/). The carrier build
-# lands in build-carrier/ so the two never share stale objects, and
-# `make HW=carrier program-dfu` flashes it.
+# Build variants. Each combination gets its own build directory so they never
+# share stale objects, and `make <flags> program-dfu` flashes that variant.
+#
+#   HW=prototype   (default) breadboard prototype, see WIRING.md
+#   HW=carrier     carrier board, see hardware/
+#   KEYLOG=1       diagnostic build: prints key events on the Seed's micro-USB
+#                  serial port instead of running MIDI, to find button nodes
+#
+# After any program-dfu, press RESET on the Seed: it does not bring USB up
+# after the DFU handoff, so MIDI or the serial log only appear after a reset.
 HW ?= prototype
+KEYLOG ?= 0
 ifeq ($(HW),carrier)
 C_DEFS += -DSYNTH_HW_CARRIER
-override BUILD_DIR = build-carrier
+BUILD_SUFFIX = -carrier
 else ifeq ($(HW),prototype)
 C_DEFS += -DSYNTH_HW_PROTOTYPE
+BUILD_SUFFIX =
 else
 $(error Unknown HW=$(HW); use HW=prototype (default) or HW=carrier)
+endif
+ifeq ($(KEYLOG),1)
+C_DEFS += -DSYNTH_KEY_LOG=1
+BUILD_SUFFIX := $(BUILD_SUFFIX)-keylog
+endif
+ifneq ($(BUILD_SUFFIX),)
+override BUILD_DIR = build$(BUILD_SUFFIX)
 endif
 
 # Library Locations

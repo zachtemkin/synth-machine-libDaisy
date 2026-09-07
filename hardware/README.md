@@ -113,9 +113,16 @@ Digi-Key list for those plus the XH housings/contacts, pots and speakers.
 `EXTERNAL` USB MIDI, drives the speaker mute on D11 with the rules below, reads
 HP_DET on D13 and holds HP_MUTE (D14) low until a plug is detected.
 
-Still open: BTN1..6 (PCB nodes above; the prototype had them on different
-nodes) have no function assigned yet. They are the `-1` entries in
-`NOTE_MAPPING`.
+BTN1 and BTN2 (the left-hand pair on the panel, c0 r0 and c0 r1) are octave
+down and up; holding both is shift, which turns the wave-shape pot into master
+volume. BTN3..6 have no function yet. The prototype's spare buttons run the
+other way through this numbering (its left pair is c4 r0 and c3 r0), and
+`AUX_MAPPING` in the firmware carries both boards.
+
+`make KEYLOG=1` builds a variant that prints every key event on the Seed's
+micro-USB serial port (`screen /dev/cu.usbmodem* 115200`) for checking panel
+wiring. After any DFU flash, press RESET: the Seed does not bring USB up after
+the DFU handoff, so neither MIDI nor the serial log appears until you do.
 
 ### MUTE drive rules (this revision)
 

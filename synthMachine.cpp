@@ -19,18 +19,31 @@ using namespace daisy::seed;
  * 3. Improved pin stabilization timing
  * 4. Better matrix scanning efficiency
  * 5. Fixed potentiometer functionality for Daisy Seed
- * 6. Added MIDI out over UART (pins 29 and 30) for USB-C breakout
+ * 6. USB MIDI out over the Seed's second USB PHY (D29/D30), wired to the
+ *    USB-C port on both boards
  *
  * Potentiometer Control System:
- * - A0: Wave Shape (Sine, Triangle, Square, Saw)
+ * - A0: Wave Shape (Sine, Triangle, Square, Saw); master volume while shift
+ *   is held
  * - A1: Attack Time (1ms to 1s)
  * - A2: Decay Time (10ms to 1s)
  * - A3: Sustain Level (0% to 100%)
  * - A4: Release Time (10ms to 2s)
  *
+ * Spare buttons (the pair on the left of the panel; see AUX_MAPPING for which
+ * matrix nodes that is on each board):
+ * - left = octave down, right = octave up (two octaves each way, applied to new
+ *   notes; held notes keep sounding where they are). They act on release so
+ *   that pressing both doesn't first fire an octave change.
+ * - Both held = shift. While shifted, the wave-shape pot becomes master
+ *   volume. When the knob is handed to a parameter it doesn't match, turning
+ *   it scales the parameter toward the knob instead of jumping, and the two
+ *   line up at either end of the sweep.
+ *
  * MIDI Output:
- * - USB MIDI. Prototype: the Seed's own USB port (INTERNAL). Carrier: the
- *   board's USB-C on D29/D30 (EXTERNAL). Chosen by the hardware profile.
+ * - USB MIDI on the EXTERNAL transport: D29 (D-) and D30 (D+), physical pins
+ *   36 and 37, which both boards wire to their USB-C port. The Seed's own
+ *   micro-USB is then only used for DFU flashing.
  *
  * Audio Output:
  * - Seed AUDIO OUT L/R (pins 18/19) -> MAX98306 class-D amp -> 2x 3W 4ohm
@@ -44,16 +57,17 @@ using namespace daisy::seed;
 // ============================================================================
 // Hardware profile
 // ============================================================================
-// Two units exist. They share the key matrix, pots and codec, but wire the
-// Seed pins that control the audio path differently:
+// Two units exist. They share the key matrix, pots, codec and the USB-C MIDI
+// port on D29/D30, but wire the Seed pins that control the audio path
+// differently:
 //
 //   make              SYNTH_HW_PROTOTYPE  Breadboard with the MAX98306 breakout.
 //                                         D11 goes straight to the amp's SD
-//                                         pin. MIDI on the Seed's own USB port.
+//                                         pin. No headphone jack.
 //   make HW=carrier   SYNTH_HW_CARRIER    Carrier board in hardware/. D11 mutes
 //                                         through transistor Q1, TPA6138A2
 //                                         headphone amp with plug detect on
-//                                         D13/D14, MIDI on the board's USB-C.
+//                                         D13/D14.
 //
 // Building with neither define falls back to the prototype.
 #if defined(SYNTH_HW_CARRIER) && defined(SYNTH_HW_PROTOTYPE)
@@ -63,11 +77,19 @@ using namespace daisy::seed;
 #define SYNTH_HW_PROTOTYPE 1
 #endif
 
-#if defined(SYNTH_HW_CARRIER)
-static constexpr auto USB_MIDI_PERIPH = MidiUsbTransport::Config::EXTERNAL;
-#else
-static constexpr auto USB_MIDI_PERIPH = MidiUsbTransport::Config::INTERNAL;
+// Key-log build (`make KEYLOG=1`): every key event is printed on the Seed's
+// micro-USB as a serial port (screen /dev/cu.usbmodem* 115200), to find out
+// which matrix node a panel button is wired to. MIDI is off in this build:
+// libDaisy's USB stack presents one device class for both ports, so the
+// logger and MIDI can't run together. After flashing over DFU, press RESET:
+// the Seed does not bring USB up after the DFU handoff.
+#ifndef SYNTH_KEY_LOG
+#define SYNTH_KEY_LOG 0
 #endif
+
+// USB MIDI transport. EXTERNAL is the D29/D30 pair (USB-C on both boards).
+// Switch to INTERNAL to get MIDI on the Seed's own micro-USB for a quick test.
+static constexpr auto USB_MIDI_PERIPH = MidiUsbTransport::Config::EXTERNAL;
 
 // Pin definitions - must be defined outside the class
 static constexpr Pin COL_PINS[6] = {seed::D4, seed::D5, seed::D6,
@@ -82,8 +104,8 @@ static constexpr Pin HP_DET_PIN = seed::D13;  // jack switch: high = plug in
 static constexpr Pin HP_MUTE_PIN = seed::D14; // TPA6138A2 ~MUTE, active low
 #endif
 
-// MIDI USB pins - Pins 29 (D-) and 30 (D+) are the USB FS data pair
-// connected to STM32H7's internal USB OTG FS PHY
+// Functions the spare matrix buttons can have
+enum AuxFn { AUX_NONE = 0, AUX_OCTAVE_DOWN, AUX_OCTAVE_UP };
 
 // ============================================================================
 // MAX98306 speaker amp control
@@ -203,7 +225,8 @@ private:
   static const int SAMPLE_RATE = 48000;
   static const int BLOCK_SIZE = 48;
 
-  // Button matrix configuration - using DaisyPod pin definitions
+  // Button matrix: 6 columns (D4..D9) driven low one at a time, 3 rows
+  // (D1..D3) read with pull-ups. A diode per key, cathode to the column.
   static const int MATRIX_COLS = 6;
   static const int MATRIX_ROWS = 3;
 
@@ -221,19 +244,64 @@ private:
       20; // 20ms - increased for better reliability
   unsigned long lastDebounceTime[MATRIX_COLS][MATRIX_ROWS] = {0};
 
-  // Note mapping: [col][row] -> note index
-  // Note indices: 0=C5, 1=B5, 2=A#/Bb, 3=A5, 4=G#/Ab, 5=G4, 6=F#/Gb, 7=F4,
-  // 8=E4, 9=D#/Eb, 10=D4, 11=C#/Db, 12=C4
+  // Note mapping: [col][row] -> note index, -1 = not a note (see AUX_MAPPING)
+  // Note indices: 0=C5, 1=B4, 2=A#4/Bb4, 3=A4, 4=G#4/Ab4, 5=G4, 6=F#4/Gb4,
+  // 7=F4, 8=E4, 9=D#4/Eb4, 10=D4, 11=C#4/Db4, 12=C4 (C4 is the direct D10 key)
+  // BTN1..BTN6 are the carrier board's names for the six spare nodes.
   const int NOTE_MAPPING[MATRIX_COLS][MATRIX_ROWS] = {
-      {-1, -1, 0}, // Column 0 (D1): none, none, C5
-      {-1, 2, 1},  // Column 1 (D2): none, A#/Bb, B5
-      {-1, 4, 3},  // Column 2 (D3): none, G#/Ab, A5
-      {-1, 6, 5},  // Column 3 (D4): none, F#/Gb, G4
-      {-1, 9, 7},  // Column 4 (D5): none, D#/Eb, F4
-      {11, 10, 8}  // Column 5 (D6): C#/Db, D4, E4
+      {-1, -1, 0}, // Column 0 (D4): BTN1, BTN2, C5
+      {-1, 2, 1},  // Column 1 (D5): BTN3, A#4, B4
+      {-1, 4, 3},  // Column 2 (D6): BTN4, G#4, A4
+      {-1, 6, 5},  // Column 3 (D7): BTN5, F#4, G4
+      {-1, 9, 7},  // Column 4 (D8): BTN6, D#4, F4
+      {11, 10, 8}  // Column 5 (D9): C#4, D4, E4
   };
 
-  // Direct note pin (C4) - defined outside class
+  // Spare-button functions: [col][row] -> AuxFn, for nodes that are -1 above.
+  // The two buttons on the left of the panel are octave down (left) and up
+  // (right). The boards wire them to different nodes: on the carrier they are
+  // BTN1/BTN2 (c0 r0, c0 r1); the prototype's spare buttons run right-to-left
+  // through the carrier's numbering, so its left pair is c4 r0 and c3 r0
+  // (measured with `make KEYLOG=1`).
+#if defined(SYNTH_HW_CARRIER)
+  const AuxFn AUX_MAPPING[MATRIX_COLS][MATRIX_ROWS] = {
+      {AUX_OCTAVE_DOWN, AUX_OCTAVE_UP, AUX_NONE}, // Column 0: BTN1, BTN2
+      {AUX_NONE, AUX_NONE, AUX_NONE},             // Column 1: BTN3
+      {AUX_NONE, AUX_NONE, AUX_NONE},             // Column 2: BTN4
+      {AUX_NONE, AUX_NONE, AUX_NONE},             // Column 3: BTN5
+      {AUX_NONE, AUX_NONE, AUX_NONE},             // Column 4: BTN6
+      {AUX_NONE, AUX_NONE, AUX_NONE},             // Column 5
+  };
+#else
+  const AuxFn AUX_MAPPING[MATRIX_COLS][MATRIX_ROWS] = {
+      {AUX_NONE, AUX_NONE, AUX_NONE},        // Column 0: two rightmost spares
+      {AUX_NONE, AUX_NONE, AUX_NONE},        // Column 1
+      {AUX_NONE, AUX_NONE, AUX_NONE},        // Column 2
+      {AUX_OCTAVE_UP, AUX_NONE, AUX_NONE},   // Column 3: second spare from left
+      {AUX_OCTAVE_DOWN, AUX_NONE, AUX_NONE}, // Column 4: leftmost spare
+      {AUX_NONE, AUX_NONE, AUX_NONE},        // Column 5
+  };
+#endif
+
+#if SYNTH_KEY_LOG
+  const char *const NOTE_NAMES[13] = {"C5", "B4",  "A#4", "A4", "G#4",
+                                      "G4", "F#4", "F4",  "E4", "D#4",
+                                      "D4", "C#4", "C4"};
+  const char *const SPARE_NAMES[MATRIX_COLS][MATRIX_ROWS] = {
+      {"BTN1", "BTN2", "-"}, {"BTN3", "-", "-"}, {"BTN4", "-", "-"},
+      {"BTN5", "-", "-"},    {"BTN6", "-", "-"}, {"-", "-", "-"},
+  };
+#endif
+
+  // Octave shift, applied to notes as they start
+  static const int OCTAVE_MIN = -2;
+  static const int OCTAVE_MAX = 2;
+  int octave = 0;
+  bool octDownHeld = false;
+  bool octUpHeld = false;
+  bool shiftActive = false;    // both octave buttons held right now
+  bool shiftChordUsed = false; // this press became a shift, so no octave step
+  int activeMidiNote[13];      // MIDI number sent at noteOn, reused at noteOff
 
   // ADC pins for potentiometers - actual hardware connections
   static const int WAVESHAPE_PIN = 0; // A0 for wave shape control
@@ -250,6 +318,27 @@ private:
 
   // Wave shape parameter
   float waveShape = 0.0f;
+
+  // Master volume: pot position (0..1) and the gain the audio callback
+  // applies, which is the square of it for a more even sweep. The callback
+  // smooths its way to volumeGain to avoid zipper noise.
+  float masterVolume = 1.0f;
+  float volumeGain = 1.0f;
+  float gainSmoothed = 1.0f;
+
+  // The wave-shape pot serves two parameters, so the knob's position rarely
+  // matches the one it has just been handed. Until they meet, turning the
+  // knob moves the parameter by the same fraction of its remaining travel in
+  // that direction, so the knob always responds, nothing ever jumps, and the
+  // two line up at either end of the sweep (or within TAKEOVER_WINDOW).
+  struct Takeover {
+    float value;   // where the parameter is (pot units, 0..1)
+    bool tracking; // pot currently controls it
+    float lastPot; // previous pot reading, for the crossing test
+  };
+  Takeover waveShapeCtl = {0.0f, true, 0.0f};
+  Takeover volumeCtl = {1.0f, false, 0.0f};
+  static constexpr float TAKEOVER_WINDOW = 0.02f;
 
   // Voice structure
   struct Voice {
@@ -270,7 +359,7 @@ private:
   bool adsrParamsChanged = false;
   bool waveShapeChanged = false;
 
-  // Musical note frequencies (C4 to C5, 1 octave with sharps/flats)
+  // Musical note frequencies at octave 0 (C4 to C5, sharps/flats included)
   // MIDI note numbers: C4=60, C#/Db=61, D4=62, D#/Eb=63, E4=64, F4=65,
   // F#/Gb=66, G4=67, G#/Ab=68, A4=69, A#/Bb=70, B4=71, C5=72
   const int midiNoteNumbers[13] = {
@@ -305,6 +394,9 @@ private:
       261.63  // C4
   };
 
+  // Frequency multiplier per octave step, indexed by octave - OCTAVE_MIN
+  const float OCTAVE_SCALE[5] = {0.25f, 0.5f, 1.0f, 2.0f, 4.0f};
+
 public:
   SynthMachine() {
     // Initialize all voices
@@ -330,6 +422,10 @@ public:
     for (int i = 0; i < NUM_VOICES; i++) {
       voices[i].osc.SetFreq(noteFrequencies[i]);
     }
+
+    for (int i = 0; i < 13; i++) {
+      activeMidiNote[i] = midiNoteNumbers[i];
+    }
   }
 
   void Init() {
@@ -342,6 +438,12 @@ public:
     // Initialize Daisy Seed
     hw.Init();
     hw.SetAudioBlockSize(BLOCK_SIZE);
+
+#if SYNTH_KEY_LOG
+    // Serial log on the Seed's micro-USB; MIDI is off in this build
+    hw.StartLog(false);
+    hw.PrintLine("synthMachine key log: KEY <col> <row> <carrier name> down|up");
+#endif
 
     // Initialize ADC for external potentiometers
     AdcChannelConfig adcConfig[5];
@@ -369,39 +471,101 @@ public:
     // Add a delay to let all pins stabilize
     System::Delay(100);
 
-    // Initialize MIDI USB interface. INTERNAL is the Seed's own USB port,
-    // EXTERNAL is the D29/D30 pair the carrier's USB-C is wired to.
+#if !SYNTH_KEY_LOG
+    // Initialize MIDI USB interface (see USB_MIDI_PERIPH)
     MidiUsbHandler::Config midi_cfg;
     midi_cfg.transport_config.periph = USB_MIDI_PERIPH;
     // Optional: tweak retries if you blast back-to-back messages
     midi_cfg.transport_config.tx_retry_count = 3;
     midi.Init(midi_cfg);
+#endif
     System::Delay(100);
   }
 
-  // Function to read potentiometer and map to ADSR range
+  // Function to read potentiometer and map to a range
   float readPotentiometer(int pin, float minVal, float maxVal) {
     // Read from the specified ADC pin (A0-A4)
     float value = hw.adc.GetFloat(pin);
     return minVal + (value * (maxVal - minVal));
   }
 
-  // Function to update ADSR parameters from potentiometers
-  void updateADSRParameters() {
-    // Read wave shape potentiometer (A0)
-    float newWaveShape = readPotentiometer(WAVESHAPE_PIN, 0.0f, 1.0f);
+  // Feed one pot reading to a takeover-guarded parameter. Returns true when
+  // the parameter's value changed.
+  bool takeoverUpdate(Takeover &t, float pot, float threshold) {
+    float prev = t.lastPot;
+    t.lastPot = pot;
+
+    if (!t.tracking && fabs(pot - t.value) < TAKEOVER_WINDOW) {
+      t.tracking = true; // knob and value have met
+    }
+
+    if (t.tracking) {
+      if (fabs(pot - t.value) > threshold) {
+        t.value = pot;
+        return true;
+      }
+      return false;
+    }
+
+    // Not tracking yet: scale the knob's movement onto the value's remaining
+    // travel in the same direction.
+    float d = pot - prev;
+    if (fabs(d) < 0.002f) {
+      return false; // ADC noise
+    }
+    if (d > 0.0f) {
+      float room = 1.0f - prev;
+      if (room > 0.001f) {
+        t.value += (1.0f - t.value) * d / room;
+      }
+    } else {
+      if (prev > 0.001f) {
+        t.value += t.value * d / prev;
+      }
+    }
+    if (t.value < 0.0f) {
+      t.value = 0.0f;
+    }
+    if (t.value > 1.0f) {
+      t.value = 1.0f;
+    }
+    if (fabs(pot - t.value) < TAKEOVER_WINDOW) {
+      t.tracking = true;
+    }
+    return true;
+  }
+
+  // Shift changed: both pot-shared parameters wait for the knob to come back
+  // to them before following it again.
+  void onShiftChanged() {
+    float pot = readPotentiometer(WAVESHAPE_PIN, 0.0f, 1.0f);
+    waveShapeCtl.tracking = false;
+    waveShapeCtl.lastPot = pot;
+    volumeCtl.tracking = false;
+    volumeCtl.lastPot = pot;
+  }
+
+  // Function to update parameters from the potentiometers
+  void updatePotentiometers() {
+    // A0: wave shape, or master volume while shift is held
+    float pot0 = readPotentiometer(WAVESHAPE_PIN, 0.0f, 1.0f);
+    if (shiftActive) {
+      if (takeoverUpdate(volumeCtl, pot0, 0.002f)) {
+        masterVolume = volumeCtl.value;
+        volumeGain = masterVolume * masterVolume;
+      }
+    } else {
+      if (takeoverUpdate(waveShapeCtl, pot0, 0.01f)) {
+        waveShape = waveShapeCtl.value;
+        waveShapeChanged = true;
+      }
+    }
 
     // Read ADSR potentiometers (A1-A4)
     float newAttackTime = readPotentiometer(ATTACK_PIN, 0.001f, 1.0f);
     float newDecayTime = readPotentiometer(DECAY_PIN, 0.01f, 1.0f);
     float newSustainLevel = readPotentiometer(SUSTAIN_PIN, 0.0f, 1.0f);
     float newReleaseTime = readPotentiometer(RELEASE_PIN, 0.01f, 2.0f);
-
-    // Check if wave shape has changed significantly
-    if (fabs(newWaveShape - waveShape) > 0.01f) {
-      waveShape = newWaveShape;
-      waveShapeChanged = true;
-    }
 
     // Only update if ADSR parameters have changed significantly
     if (fabs(newAttackTime - attackTime) > 0.001f ||
@@ -414,6 +578,72 @@ public:
       sustainLevel = newSustainLevel;
       releaseTime = newReleaseTime;
       adsrParamsChanged = true;
+    }
+  }
+
+  void setOctave(int value) {
+    if (value < OCTAVE_MIN)
+      value = OCTAVE_MIN;
+    if (value > OCTAVE_MAX)
+      value = OCTAVE_MAX;
+    octave = value;
+#if SYNTH_KEY_LOG
+    hw.PrintLine("octave %d", octave);
+#endif
+  }
+
+  // Octave buttons. A single button steps the octave on release; holding
+  // both is shift. Once a press has been part of a shift chord it no longer
+  // steps the octave, so shift can be used without side effects.
+  void auxButton(AuxFn fn, bool pressed) {
+    if (fn == AUX_OCTAVE_DOWN) {
+      octDownHeld = pressed;
+    } else if (fn == AUX_OCTAVE_UP) {
+      octUpHeld = pressed;
+    } else {
+      return;
+    }
+
+    bool both = octDownHeld && octUpHeld;
+    if (both) {
+      shiftChordUsed = true;
+    }
+
+    if (!pressed && !shiftChordUsed) {
+      setOctave(octave + (fn == AUX_OCTAVE_UP ? 1 : -1));
+    }
+    if (!octDownHeld && !octUpHeld) {
+      shiftChordUsed = false;
+    }
+
+    if (both != shiftActive) {
+      shiftActive = both;
+      onShiftChanged();
+#if SYNTH_KEY_LOG
+      hw.PrintLine("shift %s", shiftActive ? "on" : "off");
+#endif
+    }
+  }
+
+  // A matrix node changed state: dispatch to a note or a spare-button function
+  void keyEvent(int col, int row, bool pressed) {
+    int noteIndex = NOTE_MAPPING[col][row];
+#if SYNTH_KEY_LOG
+    hw.PrintLine("KEY c%d r%d  %-4s %s", col, row,
+                 noteIndex >= 0 ? NOTE_NAMES[noteIndex] : SPARE_NAMES[col][row],
+                 pressed ? "down" : "up");
+#endif
+    if (noteIndex >= 0) {
+      if (pressed) {
+        noteOn(noteIndex);
+      } else {
+        noteOff(noteIndex);
+      }
+      return;
+    }
+    AuxFn fn = AUX_MAPPING[col][row];
+    if (fn != AUX_NONE) {
+      auxButton(fn, pressed);
     }
   }
 
@@ -451,12 +681,7 @@ public:
           // Button is pressed
           if (!buttonStates[columnIndex][rowIndex]) {
             buttonStates[columnIndex][rowIndex] = true;
-
-            // Handle button press
-            int noteIndex = NOTE_MAPPING[columnIndex][rowIndex];
-            if (noteIndex >= 0) {
-              noteOn(noteIndex);
-            }
+            keyEvent(columnIndex, rowIndex, true);
           }
 
           lastDebounceTime[columnIndex][rowIndex] = System::GetNow();
@@ -465,12 +690,7 @@ public:
         // Check if button is released
         if (buttonState == false && buttonStates[columnIndex][rowIndex]) {
           buttonStates[columnIndex][rowIndex] = false;
-
-          // Handle button release
-          int noteIndex = NOTE_MAPPING[columnIndex][rowIndex];
-          if (noteIndex >= 0) {
-            noteOff(noteIndex);
-          }
+          keyEvent(columnIndex, rowIndex, false);
         }
 
         // Set row pin back to INPUT mode
@@ -485,19 +705,16 @@ public:
   }
 
   void Update() {
+#if !SYNTH_KEY_LOG
     // Listen for MIDI events (required for USB MIDI to work properly)
     midi.Listen();
+#endif
 
     // Track the headphone jack (no-op on the prototype)
     headphoneJack.Update();
 
-    // Update ADSR parameters from potentiometers
-    updateADSRParameters();
-
-    // Update LED feedback for parameter mode
-    // Removed parameter mode update
-    // hw.led1.Update(); // Removed LED update
-    // hw.led2.Update(); // Removed LED update
+    // Update parameters from potentiometers
+    updatePotentiometers();
 
     // Update wave shape for all voices if changed
     if (waveShapeChanged) {
@@ -549,40 +766,16 @@ public:
     bool currentC4State = !c4Gpio.Read();
 
     if (currentC4State != lastC4State) {
+#if SYNTH_KEY_LOG
+      hw.PrintLine("KEY D10    C4   %s", currentC4State ? "down" : "up");
+#endif
       if (currentC4State) {
         noteOn(12); // C4 is note index 12
-        // Debug: C4 note ON detected
       } else {
         noteOff(12);
-        // Debug: C4 note OFF detected
       }
       lastC4State = currentC4State;
     }
-
-    // Debug: track active voices for debugging
-    static int debugCounter = 0;
-    debugCounter++;
-    if (debugCounter % 1000 ==
-        0) { // Update every 1000 updates (roughly every 10 seconds)
-      int activeVoices = 0;
-      for (int i = 0; i < NUM_VOICES; i++) {
-        if (voices[i].isActive)
-          activeVoices++;
-      }
-
-      // Debug: show current parameter values and knob readings
-      // Removed knob reading as KNOB_1 and KNOB_2 are removed
-      // float knob1 = hw.GetKnobValue(hw.KNOB_1);
-      // float knob2 = hw.GetKnobValue(hw.KNOB_2);
-
-      // You can observe these values through the audio output or add serial
-      // output if needed Current mode: currentParameterMode Knob 1: knob1 (0.0
-      // to 1.0) Knob 2: knob2 (0.0 to 1.0) Wave shape: waveShape Attack:
-      // attackTime Decay: decayTime Sustain: sustainLevel Release: releaseTime
-    }
-
-    // Process digital controls to update button states
-    // Removed hw.ProcessDigitalControls();
   }
 
   void noteOn(int note) {
@@ -613,8 +806,9 @@ public:
       voices[voiceIndex].osc.SetWaveform(Oscillator::WAVE_SIN);
     }
 
-    // Set up the voice
-    voices[voiceIndex].frequency = noteFrequencies[note];
+    // Set up the voice at the current octave
+    voices[voiceIndex].frequency =
+        noteFrequencies[note] * OCTAVE_SCALE[octave - OCTAVE_MIN];
     voices[voiceIndex].osc.SetFreq(voices[voiceIndex].frequency);
 
     // Set waveform based on current waveShape
@@ -635,14 +829,15 @@ public:
     voices[voiceIndex].lastEnvOut = 0.0f;
     voices[voiceIndex].needsReset = false;
 
-    // Debug: note ON event - voice is now active
-    // The audio output will confirm this is working
-
-    // Send MIDI Note On message via external USB port
+    // Send MIDI Note On over USB. Remember the number so the Note Off
+    // matches even if the octave changes while the key is held.
     if (note >= 0 && note < 13) {
+      activeMidiNote[note] = midiNoteNumbers[note] + 12 * octave;
       // Note On: 0x90 = NoteOn channel 1, note number, velocity
-      uint8_t note_on[] = {0x90 | 0x00, (uint8_t)midiNoteNumbers[note], 127};
+#if !SYNTH_KEY_LOG
+      uint8_t note_on[] = {0x90 | 0x00, (uint8_t)activeMidiNote[note], 127};
       midi.SendMessage(note_on, sizeof(note_on));
+#endif
     }
   }
 
@@ -651,15 +846,16 @@ public:
     for (int i = 0; i < NUM_VOICES; i++) {
       if (voices[i].isActive && voices[i].note == note) {
         voices[i].gate = false;
-        // Debug: note OFF event - voice will fade out
       }
     }
 
-    // Send MIDI Note Off message via external USB port
+    // Send MIDI Note Off over USB
     if (note >= 0 && note < 13) {
       // Note Off: 0x80 = NoteOff channel 1, note number, velocity 0
-      uint8_t note_off[] = {0x80 | 0x00, (uint8_t)midiNoteNumbers[note], 0};
+#if !SYNTH_KEY_LOG
+      uint8_t note_off[] = {0x80 | 0x00, (uint8_t)activeMidiNote[note], 0};
       midi.SendMessage(note_off, sizeof(note_off));
+#endif
     }
   }
 
@@ -700,13 +896,13 @@ public:
         output = -0.9f + (output + 0.9f) * 0.1f;
       }
 
-      // Output to both channels of audio out 1 (stereo)
+      // Master volume, eased over ~40 ms so turning the knob doesn't zipper
+      gainSmoothed += (volumeGain - gainSmoothed) * 0.0005f;
+      output *= gainSmoothed;
+
+      // Same signal to both channels
       out[i] = output;     // Left channel
       out[i + 1] = output; // Right channel
-
-      // Note: DaisyPod only has 2 audio outputs (stereo), not 4
-      // The original code was trying to output to 4 channels which doesn't
-      // exist
     }
   }
 
@@ -731,6 +927,14 @@ public:
 // Global instance
 SynthMachine synth;
 
+// Did the ROM bootloader jump straight into us after a DFU flash, rather
+// than a reset? The bootloader leaves its USB clock enabled; a cold boot never
+// has one enabled this early. Read before anything else touches RCC.
+static bool BootedFromDfu() {
+  return (RCC->AHB1ENR &
+          (RCC_AHB1ENR_USB2OTGFSEN | RCC_AHB1ENR_USB1OTGHSEN)) != 0;
+}
+
 // Audio callback function for DaisyLib
 void AudioCallback(AudioHandle::InterleavingInputBuffer in,
                    AudioHandle::InterleavingOutputBuffer out, size_t size) {
@@ -739,6 +943,8 @@ void AudioCallback(AudioHandle::InterleavingInputBuffer in,
 
 // Main function
 int main(void) {
+  bool fromDfu = BootedFromDfu();
+
   // Initialize the synth
   synth.Init();
 
@@ -749,6 +955,17 @@ int main(void) {
   // Let the codec settle, then let the speakers play
   System::Delay(200);
   synth.SetSpeakersEnabled(true);
+
+  // Status on the Seed's LED: three blinks if we were entered straight from
+  // the DFU bootloader, then solid on = initialised and running.
+  DaisySeed &led = synth.GetHardware();
+  for (int i = 0; fromDfu && i < 3; i++) {
+    led.SetLed(true);
+    System::Delay(150);
+    led.SetLed(false);
+    System::Delay(150);
+  }
+  led.SetLed(true);
 
   // Main loop
   while (1) {
