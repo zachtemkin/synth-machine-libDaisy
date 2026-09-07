@@ -106,8 +106,40 @@ Digi-Key list for those plus the XH housings/contacts, pots and speakers.
 3. USB power budget: two 4 ohm speakers at full tilt exceed a USB-A port's
    500 mA. Use a USB-C supply or a 1.5 A-capable port.
 
-## Firmware follow-ups
+## Firmware
 
-Enable `EXTERNAL` USB MIDI, map BTN1..6 (PCB nodes above; the prototype had
-them on different nodes), read HP_DET on D13, and optionally drive HP_MUTE
-(D14) low during boot for silence.
+`../synthMachine.cpp` builds for this board with `make HW=carrier` (a plain
+`make` targets the breadboard prototype). The carrier profile enables
+`EXTERNAL` USB MIDI, drives the speaker mute on D11 with the rules below, reads
+HP_DET on D13 and holds HP_MUTE (D14) low until a plug is detected.
+
+Still open: BTN1..6 (PCB nodes above; the prototype had them on different
+nodes) have no function assigned yet. They are the `-1` entries in
+`NOTE_MAPPING`.
+
+### MUTE drive rules (this revision)
+
+MUTE (D11) and HP_DET meet at Q1's base through R6 and R5 (10k each), and
+HP_DET's pull-up R3 is 100k. So:
+
+- driving MUTE high mutes the speakers regardless of the jack;
+- leaving MUTE as an input lets the jack decide;
+- driving MUTE **low** holds Q1 off and keeps the speakers on even with
+  headphones in, because R6 to ground beats R3. Firmware never drives it low;
+  "unmute" is tri-state.
+
+While nothing is plugged in, the jack's switch ties HP_DET to the headphone
+amp's left output, so audio peaks above about 0.65 V would turn Q1 on and gate
+the speaker amp. Firmware keeps the headphone amp muted (HP_MUTE low) until a
+plug is detected, which holds that node near ground.
+
+The speakers default to on at reset, so firmware can only race the codec's
+start-up pop (it wins, since GPIO is set before the Seed init), and DFU mode or
+a crash leaves them live.
+
+### Next revision
+
+Give MUTE its own transistor (second MMBT3904, 10k base resistor, collector on
+AMP_SD) and a 10k pull-up from MUTE to +3V3. The two mute sources then become
+independent open-collector pull-downs, firmware can use plain push-pull drive,
+and the speakers default to muted at reset, in DFU mode and after a crash.

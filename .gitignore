@@ -109,3 +109,6 @@ fp-info-cache
 hardware/route_tmp/
 __pycache__/
 hardware/fab/
+
+# Per-profile firmware build dirs (make HW=carrier)
+build-*/

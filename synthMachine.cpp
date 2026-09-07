@@ -29,9 +29,45 @@ using namespace daisy::seed;
  * - A4: Release Time (10ms to 2s)
  *
  * MIDI Output:
- * - USB MIDI over built-in USB port (pins 29 D-, 30 D+ are the USB FS data
- * pair)
+ * - USB MIDI. Prototype: the Seed's own USB port (INTERNAL). Carrier: the
+ *   board's USB-C on D29/D30 (EXTERNAL). Chosen by the hardware profile.
+ *
+ * Audio Output:
+ * - Seed AUDIO OUT L/R (pins 18/19) -> MAX98306 class-D amp -> 2x 3W 4ohm
+ *   speakers, plus a headphone path that mutes the speakers when a plug is in.
+ * - D11 mutes the speaker amp on both boards, but the drive differs (see
+ *   SpeakerAmp below). D13/D14 are the headphone detect and headphone amp mute
+ *   on the carrier only. Wiring: WIRING.md (prototype), hardware/README.md
+ *   (carrier).
  */
+
+// ============================================================================
+// Hardware profile
+// ============================================================================
+// Two units exist. They share the key matrix, pots and codec, but wire the
+// Seed pins that control the audio path differently:
+//
+//   make              SYNTH_HW_PROTOTYPE  Breadboard with the MAX98306 breakout.
+//                                         D11 goes straight to the amp's SD
+//                                         pin. MIDI on the Seed's own USB port.
+//   make HW=carrier   SYNTH_HW_CARRIER    Carrier board in hardware/. D11 mutes
+//                                         through transistor Q1, TPA6138A2
+//                                         headphone amp with plug detect on
+//                                         D13/D14, MIDI on the board's USB-C.
+//
+// Building with neither define falls back to the prototype.
+#if defined(SYNTH_HW_CARRIER) && defined(SYNTH_HW_PROTOTYPE)
+#error "Define only one of SYNTH_HW_CARRIER / SYNTH_HW_PROTOTYPE"
+#endif
+#if !defined(SYNTH_HW_CARRIER) && !defined(SYNTH_HW_PROTOTYPE)
+#define SYNTH_HW_PROTOTYPE 1
+#endif
+
+#if defined(SYNTH_HW_CARRIER)
+static constexpr auto USB_MIDI_PERIPH = MidiUsbTransport::Config::EXTERNAL;
+#else
+static constexpr auto USB_MIDI_PERIPH = MidiUsbTransport::Config::INTERNAL;
+#endif
 
 // Pin definitions - must be defined outside the class
 static constexpr Pin COL_PINS[6] = {seed::D4, seed::D5, seed::D6,
@@ -39,14 +75,128 @@ static constexpr Pin COL_PINS[6] = {seed::D4, seed::D5, seed::D6,
 static constexpr Pin ROW_PINS[3] = {seed::D1, seed::D2, seed::D3};
 static constexpr Pin C4_PIN = seed::D10;
 
+// Speaker amp mute. Same pin on both boards, different drive (see SpeakerAmp).
+static constexpr Pin SPEAKER_MUTE_PIN = seed::D11;
+#if defined(SYNTH_HW_CARRIER)
+static constexpr Pin HP_DET_PIN = seed::D13;  // jack switch: high = plug in
+static constexpr Pin HP_MUTE_PIN = seed::D14; // TPA6138A2 ~MUTE, active low
+#endif
+
 // MIDI USB pins - Pins 29 (D-) and 30 (D+) are the USB FS data pair
 // connected to STM32H7's internal USB OTG FS PHY
+
+// ============================================================================
+// MAX98306 speaker amp control
+// ============================================================================
+// Both boards mute the amp from the very first instruction so the codec's
+// start-up transient never reaches the speakers; main() releases it once audio
+// is running.
+class SpeakerAmp {
+  GPIO pin;
+
+public:
+#if defined(SYNTH_HW_CARRIER)
+  // Carrier: D11 (net MUTE) feeds the base of Q1 through 10k, and Q1's
+  // collector pulls the amp's ~SHDN low. The headphone jack's plug-detect
+  // feeds the same base through its own 10k, with only a 100k pull-up behind
+  // it. So D11 has three meaningful states:
+  //   driven high -> Q1 on, speakers muted regardless of the jack
+  //   input       -> Q1 follows the jack: headphones in = speakers muted
+  //   driven low  -> Q1 held off, speakers ON even with headphones in,
+  //                  because 10k to ground beats the jack's 100k pull-up
+  // Never drive it low. "Run" means tri-state, not low.
+  void Init() {
+    // Set the output latch high while the pin is still an input, then switch
+    // to push-pull, so it never drives low even for an instant.
+    pin.Init(SPEAKER_MUTE_PIN, GPIO::Mode::INPUT, GPIO::Pull::NOPULL);
+    pin.Write(true);
+    Mute();
+  }
+  void Mute() {
+    pin.Write(true);
+    pin.Init(SPEAKER_MUTE_PIN, GPIO::Mode::OUTPUT, GPIO::Pull::NOPULL);
+  }
+  void Run() {
+    pin.Init(SPEAKER_MUTE_PIN, GPIO::Mode::INPUT, GPIO::Pull::NOPULL);
+  }
+#else
+  // Prototype: D11 goes straight to the breakout's SD pin (active low), which
+  // the breakout pulls up to VDD (5 V). Open-drain so the Seed only ever sinks
+  // it; writing true releases it to the pull-up. D11 is 5 V tolerant.
+  void Init() {
+    pin.Init(SPEAKER_MUTE_PIN, GPIO::Mode::OUTPUT_OD, GPIO::Pull::NOPULL);
+    Mute();
+  }
+  void Mute() { pin.Write(false); }
+  void Run() { pin.Write(true); }
+#endif
+};
+
+// ============================================================================
+// Headphone jack and TPA6138A2 headphone amp (carrier only)
+// ============================================================================
+// On the prototype this is a stub and D13/D14 are left untouched.
+//
+// Speaker muting on plug-in is done in hardware (the jack switch drives Q1),
+// so all the firmware has to do is manage the headphone amp's own mute and
+// remember whether a plug is in.
+class HeadphoneJack {
+#if defined(SYNTH_HW_CARRIER)
+  GPIO detect; // D13: HP_DET, high = plug inserted
+  GPIO hpMute; // D14: TPA6138A2 ~MUTE, low = headphone amp muted
+  int level = 0;
+  bool pluggedIn = false;
+  static const int DEBOUNCE_SAMPLES = 5; // x ~10 ms main-loop period
+
+public:
+  void Init() {
+    // Mute the headphone amp from the first instruction. Besides the boot
+    // pop, this matters while nothing is plugged in: the jack's switch then
+    // ties HP_DET to the headphone amp's left output, and audio peaks on
+    // that node would turn Q1 on and gate the speaker amp. A muted headphone
+    // amp holds the node near ground.
+    hpMute.Init(HP_MUTE_PIN, GPIO::Mode::OUTPUT, GPIO::Pull::NOPULL);
+    hpMute.Write(false);
+    detect.Init(HP_DET_PIN, GPIO::Mode::INPUT, GPIO::Pull::NOPULL);
+  }
+
+  // Call once per main-loop pass. Integrating debounce: the count climbs while
+  // the pin reads high and falls while it reads low, and the state only flips
+  // at the ends of the range. Audio on the node (centred on 0 V) can't hold
+  // it high, so an unplug is still recognised while a note is sounding.
+  void Update() {
+    if (detect.Read()) {
+      if (level < DEBOUNCE_SAMPLES)
+        level++;
+    } else if (level > 0) {
+      level--;
+    }
+
+    if (!pluggedIn && level >= DEBOUNCE_SAMPLES) {
+      pluggedIn = true;
+      hpMute.Write(true); // headphones in: run the headphone amp
+    } else if (pluggedIn && level <= 0) {
+      pluggedIn = false;
+      hpMute.Write(false); // headphones out: mute it again
+    }
+  }
+
+  bool IsPluggedIn() const { return pluggedIn; }
+#else
+public:
+  void Init() {}
+  void Update() {}
+  bool IsPluggedIn() const { return false; }
+#endif
+};
 
 class SynthMachine {
 private:
   // Hardware configuration
   DaisySeed hw;
   MidiUsbHandler midi; // USB MIDI handler
+  SpeakerAmp speakerAmp;
+  HeadphoneJack headphoneJack;
 
   // Audio parameters
   static const int NUM_VOICES = 13;
@@ -183,6 +333,12 @@ public:
   }
 
   void Init() {
+    // Silence both amps before anything else. libDaisy's GPIO driver enables
+    // its own port clock, so this works ahead of hw.Init(), and hw.Init() is
+    // where the codec is brought up, which is the source of the start-up pop.
+    speakerAmp.Init();
+    headphoneJack.Init();
+
     // Initialize Daisy Seed
     hw.Init();
     hw.SetAudioBlockSize(BLOCK_SIZE);
@@ -213,9 +369,10 @@ public:
     // Add a delay to let all pins stabilize
     System::Delay(100);
 
-    // Initialize MIDI USB interface
+    // Initialize MIDI USB interface. INTERNAL is the Seed's own USB port,
+    // EXTERNAL is the D29/D30 pair the carrier's USB-C is wired to.
     MidiUsbHandler::Config midi_cfg;
-    midi_cfg.transport_config.periph = MidiUsbTransport::Config::INTERNAL;
+    midi_cfg.transport_config.periph = USB_MIDI_PERIPH;
     // Optional: tweak retries if you blast back-to-back messages
     midi_cfg.transport_config.tx_retry_count = 3;
     midi.Init(midi_cfg);
@@ -330,6 +487,9 @@ public:
   void Update() {
     // Listen for MIDI events (required for USB MIDI to work properly)
     midi.Listen();
+
+    // Track the headphone jack (no-op on the prototype)
+    headphoneJack.Update();
 
     // Update ADSR parameters from potentiometers
     updateADSRParameters();
@@ -550,6 +710,20 @@ public:
     }
   }
 
+  // Speaker amp on/off (true = let the speakers play). On the carrier "on"
+  // still defers to the headphone jack, which mutes the speakers in hardware
+  // while a plug is in.
+  void SetSpeakersEnabled(bool enabled) {
+    if (enabled) {
+      speakerAmp.Run();
+    } else {
+      speakerAmp.Mute();
+    }
+  }
+
+  // True while a headphone plug is detected (always false on the prototype)
+  bool HeadphonesPluggedIn() const { return headphoneJack.IsPluggedIn(); }
+
   // Getter for hardware reference
   DaisySeed &GetHardware() { return hw; }
 };
@@ -571,6 +745,10 @@ int main(void) {
   // Set the audio callback
   synth.GetHardware().StartAudio(AudioCallback);
   synth.GetHardware().SetAudioBlockSize(48);
+
+  // Let the codec settle, then let the speakers play
+  System::Delay(200);
+  synth.SetSpeakersEnabled(true);
 
   // Main loop
   while (1) {
