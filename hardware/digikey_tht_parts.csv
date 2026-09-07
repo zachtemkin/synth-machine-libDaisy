@@ -1,9 +1,6 @@
 Digi-Key Part Number,Manufacturer Part Number,Quantity,Customer Reference,Description
 455-2247-ND,B2B-XH-A(LF)(SN),20,K1-K19 + spare,"JST XH 2-pin header, vertical (buttons)"
 455-2248-ND,B3B-XH-A(LF)(SN),6,J10-J14 + spare,"JST XH 3-pin header, vertical (pots)"
-455-2266-ND,XHP-2,22,button leads,JST XH 2-pin housing (or buy pre-crimped XH leads)
-455-2267-ND,XHP-3,6,pot leads,JST XH 3-pin housing
-455-1135-1-ND,SXH-001T-P0.6,70,XH contacts,"JST XH crimp contact 22-28 AWG, cut tape (or pre-crimped leads)"
 455-1704-ND,B2B-PH-K-S(LF)(SN),3,"J5,J6 + spare",JST PH 2-pin socket for the Adafruit speaker plugs
 S7018-ND,PPTC201LFBN-RC,2,U1 sockets,"1x20 female header, 2 per Seed"
 S1011EC-40-ND,PRPC040SAAN-RC,1,J8,1x40 breakaway pin header (need 12)
