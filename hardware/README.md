@@ -111,3 +111,45 @@ Digi-Key list for those plus the XH housings/contacts, pots and speakers.
 Enable `EXTERNAL` USB MIDI, map BTN1..6 (PCB nodes above; the prototype had
 them on different nodes), read HP_DET on D13, and optionally drive HP_MUTE
 (D14) low during boot for silence.
+
+## Next revision
+
+Notes for v0.4. None of this is in `gen_kicad.py` yet.
+
+- **Shorter, wider board with the key headers in one line.** v0.3 splits the
+  19 key headers 10 down the left edge and 9 along the bottom, so the leads to
+  the panel run in two directions and differ a lot in length. Try a landscape
+  board (something like 160 x 60 mm) with all of K1..K19 in a single row along
+  the bottom edge, in panel order, so every button lead is the same length and
+  points the same way. A JST-XH 2-pin header is 7.5 mm wide, so 19 in a row
+  is about 150 mm with 0.5 mm gaps. If that is too wide, stagger them like a
+  keyboard: two rows offset by half a pitch, which fits in about 80 mm and
+  still keeps neighbours next to each other. Either way the diode for each
+  key stays beside its header. This leaves JLCPCB's 100 x 100 mm price tier
+  but a 2-layer board this size is still only a few dollars more.
+- **Panel RGB LED.** Add a JST-XH header and SMD series resistors for a
+  panel-mount RGB LED to use as a status indicator (MIDI activity, headphone
+  detect, battery state, whatever the firmware wants). Simplest is a plain
+  common-cathode RGB LED on a 4-pin XH (R, G, B, GND) with three 0805
+  resistors (about 150R for red, 100R for green and blue at 3V3) on three
+  spare pins that can do PWM, for example D26, D27 and D20 (A5), all of which
+  are on J8 today. An addressable WS2812B/SK6812 on a 3-pin XH (5V, DATA,
+  GND) needs only one resistor (330R in series with DATA) and one GPIO, but
+  the Seed's 3V3 data level is marginal for a 5V-powered WS2812B, so either
+  add a level shifter or pick a part specified for 3V3 logic.
+- **Onboard power: LiPo with USB charging.** Add a single-cell LiPo on a
+  JST-PH 2-pin (Adafruit/SparkFun polarity), charged from the existing USB-C
+  VBUS. The catch is that the Seed's VIN wants 4 to 17 V and the MAX98306 runs
+  from the +5V rail, so a 3.0 to 4.2 V cell cannot feed them directly: the
+  battery needs a 5 V boost sized for the speaker amp (2 A peak, so a
+  TPS61088/TPS61023 class part, not a tiny one). Use a charger with a proper
+  power path (BQ24074 or MCP73871) so the synth runs from USB while the cell
+  charges and switches to the cell when unplugged; a one-chip power-bank IC
+  like the IP5306 is tempting but shuts itself off at low load, which a synth
+  idling on the panel will trigger. Also needed: a real power switch (v0.3 has
+  none, VBUS is always on), cell protection (a protected cell, or DW01 +
+  FS8205 on the board), a divider from the cell to a spare ADC pin (A6..A8)
+  so the firmware can read the battery, and a charge-status output the RGB
+  LED above can show. Rename the rails while doing it: VBUS -> charger ->
+  VSYS -> boost -> +5V, with F1 staying on the USB input. A 2000 mAh or larger
+  cell is about right given the speakers can pull over 1 A at full volume.
