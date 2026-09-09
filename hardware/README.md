@@ -115,9 +115,12 @@ HP_DET on D13 and holds HP_MUTE (D14) low until a plug is detected.
 
 BTN1 and BTN2 (the left-hand pair on the panel, c0 r0 and c0 r1) are octave
 down and up; holding both is shift, which turns the wave-shape pot into master
-volume. BTN3..6 have no function yet. The prototype's spare buttons run the
-other way through this numbering (its left pair is c4 r0 and c3 r0), and
-`AUX_MAPPING` in the firmware carries both boards.
+volume. BTN3..6 pick what the four right-hand pots (A1..A4) control: BTN3 =
+envelope (attack, decay, sustain, release; the default), BTN4 = effects
+(filter cutoff, resonance, delay, reverb), BTN5 = LFO 1 and BTN6 = LFO 2
+(rate, depth, shape, destination). The prototype's spare buttons run the other way through this numbering
+(its left pair is c4 r0 and c3 r0), and `AUX_MAPPING` in the firmware carries
+both boards.
 
 `make KEYLOG=1` builds a variant that prints every key event on the Seed's
 micro-USB serial port (`screen /dev/cu.usbmodem* 115200`) for checking panel

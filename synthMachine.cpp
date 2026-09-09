@@ -25,20 +25,35 @@ using namespace daisy::seed;
  * Potentiometer Control System:
  * - A0: Wave Shape (Sine, Triangle, Square, Saw); master volume while shift
  *   is held
- * - A1: Attack Time (1ms to 1s)
- * - A2: Decay Time (10ms to 1s)
- * - A3: Sustain Level (0% to 100%)
- * - A4: Release Time (10ms to 2s)
+ * - A1..A4: one of four banks of parameters, chosen with the four pot-mode
+ *   buttons (see POT_MODES):
+ *     mode 1, envelope (default)  attack, decay, sustain, release
+ *     mode 2, effects             filter cutoff, resonance, delay, reverb
+ *     mode 3, LFO 1               rate, depth, shape, destination
+ *     mode 4, LFO 2               rate, depth, shape, destination
+ *   The LFOs (see Lfo) modulate a destination around its knob's value:
+ *   shape is sine / triangle / square / ramp / sample-and-hold and the
+ *   destination is none / cutoff / resonance / pitch / volume / delay /
+ *   reverb. Both LFOs can drive the same destination. While LFO 1 has a
+ *   destination and some depth, the Seed's LED blinks at its rate.
+ *   A pot is shared between banks, so whenever it is handed to a parameter
+ *   it doesn't match, turning it scales the parameter toward the knob
+ *   instead of jumping, and the two line up at either end of the sweep
+ *   (see Takeover). Switching banks therefore never makes the sound jump.
  *
- * Spare buttons (the pair on the left of the panel; see AUX_MAPPING for which
- * matrix nodes that is on each board):
- * - left = octave down, right = octave up (two octaves each way, applied to new
- *   notes; held notes keep sounding where they are). They act on release so
- *   that pressing both doesn't first fire an octave change.
- * - Both held = shift. While shifted, the wave-shape pot becomes master
- *   volume. When the knob is handed to a parameter it doesn't match, turning
- *   it scales the parameter toward the knob instead of jumping, and the two
- *   line up at either end of the sweep.
+ * Spare buttons, numbered left to right across the panel (see AUX_MAPPING
+ * for which matrix nodes those are on each board):
+ * - 1 and 2: octave down and up (two octaves each way, applied to new notes;
+ *   held notes keep sounding where they are). They act on release so that
+ *   pressing both doesn't first fire an octave change.
+ *   Both held = shift. While shifted, the wave-shape pot becomes master
+ *   volume, with the same takeover behaviour as the banks.
+ * - 3 to 6: select pot bank 1 to 4 for A1..A4, on press.
+ *
+ * Signal chain: voices (pitch LFO) -> state-variable low-pass filter ->
+ * delay -> reverb
+ * -> soft limiter -> master volume. The delay and reverb buffers live in the
+ * Seed's SDRAM (see the DSY_SDRAM_BSS globals).
  *
  * MIDI Output:
  * - USB MIDI on the EXTERNAL transport: D29 (D-) and D30 (D+), physical pins
@@ -61,7 +76,8 @@ using namespace daisy::seed;
 // port on D29/D30, but wire the Seed pins that control the audio path
 // differently:
 //
-//   make              SYNTH_HW_PROTOTYPE  Breadboard with the MAX98306 breakout.
+//   make              SYNTH_HW_PROTOTYPE  Breadboard with the MAX98306
+//   breakout.
 //                                         D11 goes straight to the amp's SD
 //                                         pin. No headphone jack.
 //   make HW=carrier   SYNTH_HW_CARRIER    Carrier board in hardware/. D11 mutes
@@ -105,7 +121,27 @@ static constexpr Pin HP_MUTE_PIN = seed::D14; // TPA6138A2 ~MUTE, active low
 #endif
 
 // Functions the spare matrix buttons can have
-enum AuxFn { AUX_NONE = 0, AUX_OCTAVE_DOWN, AUX_OCTAVE_UP };
+enum AuxFn {
+  AUX_NONE = 0,
+  AUX_OCTAVE_DOWN,
+  AUX_OCTAVE_UP,
+  AUX_POT_MODE_1, // pots A1..A4 = envelope (the default bank)
+  AUX_POT_MODE_2, // pots A1..A4 = effects
+  AUX_POT_MODE_3, // pots A1..A4 = LFO 1
+  AUX_POT_MODE_4  // pots A1..A4 = LFO 2
+};
+
+// ============================================================================
+// Effects buffers
+// ============================================================================
+// ReverbSc carries about 400 KB of delay lines and the echo needs another
+// 96 KB, more than the app can have of the H7's internal RAM, so both live in
+// the Seed's SDRAM. hw.Init() brings the SDRAM up; SynthMachine::Init() then
+// calls their Init(), which clears them (.sdram_bss is not zeroed at boot).
+static constexpr int AUDIO_SAMPLE_RATE = 48000;
+static constexpr size_t DELAY_MAX_SAMPLES = AUDIO_SAMPLE_RATE / 2; // 500 ms
+static ReverbSc DSY_SDRAM_BSS reverb;
+static DelayLine<float, DELAY_MAX_SAMPLES> DSY_SDRAM_BSS delayLine;
 
 // ============================================================================
 // MAX98306 speaker amp control
@@ -222,7 +258,7 @@ private:
 
   // Audio parameters
   static const int NUM_VOICES = 13;
-  static const int SAMPLE_RATE = 48000;
+  static const int SAMPLE_RATE = AUDIO_SAMPLE_RATE;
   static const int BLOCK_SIZE = 48;
 
   // Button matrix: 6 columns (D4..D9) driven low one at a time, 3 rows
@@ -258,28 +294,30 @@ private:
   };
 
   // Spare-button functions: [col][row] -> AuxFn, for nodes that are -1 above.
-  // The two buttons on the left of the panel are octave down (left) and up
-  // (right). The boards wire them to different nodes: on the carrier they are
-  // BTN1/BTN2 (c0 r0, c0 r1); the prototype's spare buttons run right-to-left
-  // through the carrier's numbering, so its left pair is c4 r0 and c3 r0
-  // (measured with `make KEYLOG=1`).
+  // Left to right on the panel: octave down, octave up, then pot modes 1 to
+  // 4. The boards wire them to different nodes. On the carrier they are
+  // BTN1..BTN6 in order (c0 r0, c0 r1, c1 r0, c2 r0, c3 r0, c4 r0). The
+  // prototype's spare buttons run right-to-left through the carrier's
+  // numbering: its left pair was measured as c4 r0 and c3 r0 with
+  // `make KEYLOG=1`, and the four mode buttons below follow on from that
+  // (c2 r0, c1 r0, c0 r1, c0 r0) without having been measured yet.
 #if defined(SYNTH_HW_CARRIER)
   const AuxFn AUX_MAPPING[MATRIX_COLS][MATRIX_ROWS] = {
       {AUX_OCTAVE_DOWN, AUX_OCTAVE_UP, AUX_NONE}, // Column 0: BTN1, BTN2
-      {AUX_NONE, AUX_NONE, AUX_NONE},             // Column 1: BTN3
-      {AUX_NONE, AUX_NONE, AUX_NONE},             // Column 2: BTN4
-      {AUX_NONE, AUX_NONE, AUX_NONE},             // Column 3: BTN5
-      {AUX_NONE, AUX_NONE, AUX_NONE},             // Column 4: BTN6
+      {AUX_POT_MODE_1, AUX_NONE, AUX_NONE},       // Column 1: BTN3
+      {AUX_POT_MODE_2, AUX_NONE, AUX_NONE},       // Column 2: BTN4
+      {AUX_POT_MODE_3, AUX_NONE, AUX_NONE},       // Column 3: BTN5
+      {AUX_POT_MODE_4, AUX_NONE, AUX_NONE},       // Column 4: BTN6
       {AUX_NONE, AUX_NONE, AUX_NONE},             // Column 5
   };
 #else
   const AuxFn AUX_MAPPING[MATRIX_COLS][MATRIX_ROWS] = {
-      {AUX_NONE, AUX_NONE, AUX_NONE},        // Column 0: two rightmost spares
-      {AUX_NONE, AUX_NONE, AUX_NONE},        // Column 1
-      {AUX_NONE, AUX_NONE, AUX_NONE},        // Column 2
-      {AUX_OCTAVE_UP, AUX_NONE, AUX_NONE},   // Column 3: second spare from left
-      {AUX_OCTAVE_DOWN, AUX_NONE, AUX_NONE}, // Column 4: leftmost spare
-      {AUX_NONE, AUX_NONE, AUX_NONE},        // Column 5
+      {AUX_POT_MODE_4, AUX_POT_MODE_3, AUX_NONE}, // Column 0: 6th, 5th spare
+      {AUX_POT_MODE_2, AUX_NONE, AUX_NONE},       // Column 1: 4th spare
+      {AUX_POT_MODE_1, AUX_NONE, AUX_NONE},       // Column 2: 3rd spare
+      {AUX_OCTAVE_UP, AUX_NONE, AUX_NONE},        // Column 3: 2nd spare
+      {AUX_OCTAVE_DOWN, AUX_NONE, AUX_NONE},      // Column 4: leftmost spare
+      {AUX_NONE, AUX_NONE, AUX_NONE},             // Column 5
   };
 #endif
 
@@ -303,14 +341,91 @@ private:
   bool shiftChordUsed = false; // this press became a shift, so no octave step
   int activeMidiNote[13];      // MIDI number sent at noteOn, reused at noteOff
 
-  // ADC pins for potentiometers - actual hardware connections
-  static const int WAVESHAPE_PIN = 0; // A0 for wave shape control
-  static const int ATTACK_PIN = 1;    // A1 for attack
-  static const int DECAY_PIN = 2;     // A2 for decay
-  static const int SUSTAIN_PIN = 3;   // A3 for sustain
-  static const int RELEASE_PIN = 4;   // A4 for release
+  // ADC channels for the potentiometers: A0 is the wave-shape / volume pot,
+  // A1..A4 are the bank of four whose meaning the pot-mode buttons choose.
+  static const int WAVESHAPE_PIN = 0;
+  static const int BANK_FIRST_PIN = 1;
+  static const int BANK_POTS = 4;
 
-  // ADSR envelope parameters
+  // Every pot-controlled parameter. Each is stored in pot units (0..1) and
+  // mapped onto the synth by applyParam().
+  enum Param {
+    P_NONE = -1,
+    P_WAVESHAPE = 0,
+    P_VOLUME,
+    P_ATTACK,
+    P_DECAY,
+    P_SUSTAIN,
+    P_RELEASE,
+    P_CUTOFF,
+    P_RESONANCE,
+    P_DELAY,
+    P_REVERB,
+    P_LFO1_RATE,
+    P_LFO1_DEPTH,
+    P_LFO1_SHAPE,
+    P_LFO1_DEST,
+    P_LFO2_RATE,
+    P_LFO2_DEPTH,
+    P_LFO2_SHAPE,
+    P_LFO2_DEST,
+    NUM_PARAMS
+  };
+
+  // Stepped parameters (a few zones across the sweep, like the wave shape)
+  // get a coarser change threshold than continuous ones.
+  static bool isStepped(Param p) {
+    return p == P_WAVESHAPE || p == P_LFO1_SHAPE || p == P_LFO1_DEST ||
+           p == P_LFO2_SHAPE || p == P_LFO2_DEST;
+  }
+
+  // What A1..A4 control in each pot mode. P_NONE would leave a pot idle.
+  static const int NUM_POT_MODES = 4;
+  const Param POT_MODES[NUM_POT_MODES][BANK_POTS] = {
+      {P_ATTACK, P_DECAY, P_SUSTAIN, P_RELEASE},  // mode 1: envelope (default)
+      {P_CUTOFF, P_RESONANCE, P_DELAY, P_REVERB}, // mode 2: effects
+      {P_LFO1_RATE, P_LFO1_DEPTH, P_LFO1_SHAPE, P_LFO1_DEST}, // mode 3
+      {P_LFO2_RATE, P_LFO2_DEPTH, P_LFO2_SHAPE, P_LFO2_DEST}, // mode 4
+  };
+  int potMode = 0;
+
+  // A pot serves several parameters, so the knob's position rarely matches
+  // the one it has just been handed. Until they meet, turning the knob moves
+  // the parameter by the same fraction of its remaining travel in that
+  // direction, so the knob always responds, nothing ever jumps, and the two
+  // line up at either end of the sweep (or within TAKEOVER_WINDOW).
+  struct Takeover {
+    float value;   // where the parameter is (pot units, 0..1)
+    bool tracking; // pot currently controls it
+    float lastPot; // previous pot reading, for the crossing test
+  };
+  static constexpr float TAKEOVER_WINDOW = 0.02f;
+
+  // Per-parameter state, indexed by Param. The envelope bank starts out
+  // tracking so the knobs take it over at once on boot, as the pots always
+  // did; everything else waits for its knob to catch up.
+  Takeover params[NUM_PARAMS] = {
+      {0.0f, true, 0.0f},    // P_WAVESHAPE: sine
+      {1.0f, false, 0.0f},   // P_VOLUME: full
+      {0.009f, true, 0.0f},  // P_ATTACK: 10 ms
+      {0.0909f, true, 0.0f}, // P_DECAY: 100 ms
+      {0.7f, true, 0.0f},    // P_SUSTAIN: 70%
+      {0.0201f, true, 0.0f}, // P_RELEASE: 50 ms
+      {1.0f, false, 0.0f},   // P_CUTOFF: wide open
+      {0.0f, false, 0.0f},   // P_RESONANCE: none
+      {0.0f, false, 0.0f},   // P_DELAY: off
+      {0.0f, false, 0.0f},   // P_REVERB: off
+      {0.5f, false, 0.0f},   // P_LFO1_RATE: 1 Hz
+      {0.0f, false, 0.0f},   // P_LFO1_DEPTH: off
+      {0.0f, false, 0.0f},   // P_LFO1_SHAPE: sine
+      {0.0f, false, 0.0f},   // P_LFO1_DEST: none
+      {0.5f, false, 0.0f},   // P_LFO2_RATE: 1 Hz
+      {0.0f, false, 0.0f},   // P_LFO2_DEPTH: off
+      {0.0f, false, 0.0f},   // P_LFO2_SHAPE: sine
+      {0.0f, false, 0.0f},   // P_LFO2_DEST: none
+  };
+
+  // ADSR envelope parameters, in seconds / level
   float attackTime = 0.01f;  // 10ms attack
   float decayTime = 0.1f;    // 100ms decay
   float sustainLevel = 0.7f; // 70% sustain level
@@ -326,19 +441,82 @@ private:
   float volumeGain = 1.0f;
   float gainSmoothed = 1.0f;
 
-  // The wave-shape pot serves two parameters, so the knob's position rarely
-  // matches the one it has just been handed. Until they meet, turning the
-  // knob moves the parameter by the same fraction of its remaining travel in
-  // that direction, so the knob always responds, nothing ever jumps, and the
-  // two line up at either end of the sweep (or within TAKEOVER_WINDOW).
-  struct Takeover {
-    float value;   // where the parameter is (pot units, 0..1)
-    bool tracking; // pot currently controls it
-    float lastPot; // previous pot reading, for the crossing test
+  // Effects. The main loop writes the targets; the audio callback eases its
+  // own copies toward them once per block (1 ms) so knob moves don't zipper.
+  //   Cutoff: 10 octaves from CUTOFF_MIN_HZ, so the knob is exponential.
+  //   Resonance: capped below Svf's self-oscillation point. The filter runs
+  //          with drive 0: DaisySP's drive term is a cubic that diverges to
+  //          infinity when the state exceeds about 1.4, and the NaN would
+  //          then poison the delay and reverb lines for good. The mix is
+  //          also soft-limited before it reaches the filter.
+  //   Delay: one knob sets the echo level and, with it, the feedback, so a
+  //          closed knob lets the line run out. Fixed delay time.
+  //   Reverb: one knob sets the wet level of a fixed-size room.
+  static constexpr float CUTOFF_MIN_HZ = 20.0f;
+  static constexpr float CUTOFF_OCTAVES = 10.0f;
+  static constexpr float RES_MAX = 0.9f;
+  static constexpr float DELAY_TIME_S = 0.35f;
+  static constexpr float DELAY_FEEDBACK_MAX = 0.7f;
+  static constexpr float REVERB_FEEDBACK = 0.87f;
+  static constexpr float REVERB_LP_HZ = 9000.0f;
+  static constexpr float REVERB_WET_SCALE = 0.6f;
+  static constexpr float FX_SMOOTHING = 0.05f; // per block, ~20 ms
+  Svf filter;
+  float filterCutoffHz = CUTOFF_MIN_HZ * 1024.0f;
+  float filterRes = 0.0f;
+  float delayWet = 0.0f;
+  float reverbWet = 0.0f;
+  float cutoffSmoothed = CUTOFF_MIN_HZ * 1024.0f;
+  float resSmoothed = 0.0f;
+  float delayWetSmoothed = 0.0f;
+  float reverbWetSmoothed = 0.0f;
+
+  // Two LFOs, stepped once per audio block (1 kHz). Each pushes its
+  // destination around the knob's value; the knob's own value is never
+  // touched, so takeover keeps working and zero depth lands back on the knob.
+  // Full depth means: cutoff +-LFO_CUTOFF_OCTAVES, pitch +-LFO_PITCH_OCTAVES
+  // (squared, so the first third of the knob is vibrato), volume dips to
+  // silence (tremolo only goes down), the rest +-the whole knob range.
+  enum LfoShape {
+    LFO_SINE = 0,
+    LFO_TRI,
+    LFO_SQUARE,
+    LFO_RAMP,
+    LFO_SH,
+    NUM_LFO_SHAPES
   };
-  Takeover waveShapeCtl = {0.0f, true, 0.0f};
-  Takeover volumeCtl = {1.0f, false, 0.0f};
-  static constexpr float TAKEOVER_WINDOW = 0.02f;
+  enum LfoDest {
+    DEST_NONE = 0,
+    DEST_CUTOFF,
+    DEST_RESONANCE,
+    DEST_PITCH,
+    DEST_VOLUME,
+    DEST_DELAY,
+    DEST_REVERB,
+    NUM_LFO_DESTS
+  };
+  struct Lfo {
+    // Settings, written by the main loop from the pots
+    float rateHz;
+    float depth; // 0..1
+    LfoShape shape;
+    LfoDest dest;
+    // Running state, owned by the audio callback
+    float phase;  // 0..1
+    float held;   // current sample-and-hold value
+    float out;    // this block's output, -1..1
+    uint32_t rng; // for sample-and-hold
+  };
+  static const int NUM_LFOS = 2;
+  Lfo lfos[NUM_LFOS] = {
+      {1.0f, 0.0f, LFO_SINE, DEST_NONE, 0.0f, 0.0f, 0.0f, 0x1234567u},
+      {1.0f, 0.0f, LFO_SINE, DEST_NONE, 0.0f, 0.0f, 0.0f, 0x89abcdefu},
+  };
+  static constexpr float LFO_RATE_MIN_HZ = 0.05f;
+  static constexpr float LFO_RATE_RANGE = 400.0f; // ratio max/min: to 20 Hz
+  static constexpr float LFO_CUTOFF_OCTAVES = 5.0f;
+  static constexpr float LFO_PITCH_OCTAVES = 1.0f;
+  static constexpr float BLOCK_SECONDS = (float)BLOCK_SIZE / SAMPLE_RATE;
 
   // Voice structure
   struct Voice {
@@ -435,14 +613,26 @@ public:
     speakerAmp.Init();
     headphoneJack.Init();
 
-    // Initialize Daisy Seed
+    // Initialize Daisy Seed (this also brings up the SDRAM)
     hw.Init();
     hw.SetAudioBlockSize(BLOCK_SIZE);
+
+    // Effects chain
+    filter.Init(SAMPLE_RATE);
+    filter.SetDrive(0.0f); // linear: see the note on the effects above
+    filter.SetFreq(filterCutoffHz);
+    filter.SetRes(filterRes);
+    delayLine.Init();
+    delayLine.SetDelay(DELAY_TIME_S * SAMPLE_RATE);
+    reverb.Init(SAMPLE_RATE);
+    reverb.SetFeedback(REVERB_FEEDBACK);
+    reverb.SetLpFreq(REVERB_LP_HZ);
 
 #if SYNTH_KEY_LOG
     // Serial log on the Seed's micro-USB; MIDI is off in this build
     hw.StartLog(false);
-    hw.PrintLine("synthMachine key log: KEY <col> <row> <carrier name> down|up");
+    hw.PrintLine(
+        "synthMachine key log: KEY <col> <row> <carrier name> down|up");
 #endif
 
     // Initialize ADC for external potentiometers
@@ -482,12 +672,8 @@ public:
     System::Delay(100);
   }
 
-  // Function to read potentiometer and map to a range
-  float readPotentiometer(int pin, float minVal, float maxVal) {
-    // Read from the specified ADC pin (A0-A4)
-    float value = hw.adc.GetFloat(pin);
-    return minVal + (value * (maxVal - minVal));
-  }
+  // Read one of the pots (ADC channel 0..4) as 0..1
+  float readPot(int pin) { return hw.adc.GetFloat(pin); }
 
   // Feed one pot reading to a takeover-guarded parameter. Returns true when
   // the parameter's value changed.
@@ -535,49 +721,122 @@ public:
     return true;
   }
 
-  // Shift changed: both pot-shared parameters wait for the knob to come back
-  // to them before following it again.
+  // Hand a pot to a parameter: the parameter waits for the knob to come back
+  // to it (scaling toward it meanwhile) before following it again.
+  void handoff(Param p, int pin) {
+    if (p == P_NONE) {
+      return;
+    }
+    params[p].tracking = false;
+    params[p].lastPot = readPot(pin);
+  }
+
+  // Shift changed: both of the A0 parameters wait for the knob.
   void onShiftChanged() {
-    float pot = readPotentiometer(WAVESHAPE_PIN, 0.0f, 1.0f);
-    waveShapeCtl.tracking = false;
-    waveShapeCtl.lastPot = pot;
-    volumeCtl.tracking = false;
-    volumeCtl.lastPot = pot;
+    handoff(P_WAVESHAPE, WAVESHAPE_PIN);
+    handoff(P_VOLUME, WAVESHAPE_PIN);
+  }
+
+  // A pot-mode button: hand A1..A4 to the new bank's parameters.
+  void setPotMode(int mode) {
+    if (mode == potMode) {
+      return;
+    }
+    potMode = mode;
+    for (int i = 0; i < BANK_POTS; i++) {
+      handoff(POT_MODES[mode][i], BANK_FIRST_PIN + i);
+    }
+#if SYNTH_KEY_LOG
+    hw.PrintLine("pot mode %d", mode + 1);
+#endif
+  }
+
+  // Map a parameter's pot-units value (0..1) onto the synth
+  void applyParam(Param p, float v) {
+    switch (p) {
+    case P_WAVESHAPE:
+      waveShape = v;
+      waveShapeChanged = true;
+      break;
+    case P_VOLUME:
+      masterVolume = v;
+      volumeGain = masterVolume * masterVolume;
+      break;
+    case P_ATTACK: // 1 ms to 1 s
+      attackTime = 0.001f + v * (1.0f - 0.001f);
+      adsrParamsChanged = true;
+      break;
+    case P_DECAY: // 10 ms to 1 s
+      decayTime = 0.01f + v * (1.0f - 0.01f);
+      adsrParamsChanged = true;
+      break;
+    case P_SUSTAIN: // 0 to 100%
+      sustainLevel = v;
+      adsrParamsChanged = true;
+      break;
+    case P_RELEASE: // 10 ms to 2 s
+      releaseTime = 0.01f + v * (2.0f - 0.01f);
+      adsrParamsChanged = true;
+      break;
+    case P_CUTOFF:
+      filterCutoffHz = CUTOFF_MIN_HZ * powf(2.0f, v * CUTOFF_OCTAVES);
+      break;
+    case P_RESONANCE:
+      filterRes = v * RES_MAX;
+      break;
+    case P_DELAY:
+      delayWet = v;
+      break;
+    case P_REVERB:
+      reverbWet = v;
+      break;
+    case P_LFO1_RATE:
+    case P_LFO2_RATE:
+      lfos[p >= P_LFO2_RATE].rateHz = LFO_RATE_MIN_HZ * powf(LFO_RATE_RANGE, v);
+      break;
+    case P_LFO1_DEPTH:
+    case P_LFO2_DEPTH:
+      lfos[p >= P_LFO2_RATE].depth = v;
+      break;
+    case P_LFO1_SHAPE:
+    case P_LFO2_SHAPE:
+      lfos[p >= P_LFO2_RATE].shape = (LfoShape)stepped(v, NUM_LFO_SHAPES);
+      break;
+    case P_LFO1_DEST:
+    case P_LFO2_DEST:
+      lfos[p >= P_LFO2_RATE].dest = (LfoDest)stepped(v, NUM_LFO_DESTS);
+      break;
+    default:
+      break;
+    }
+  }
+
+  // Split a 0..1 pot into n equal zones
+  static int stepped(float v, int n) {
+    int i = (int)(v * n);
+    return i < 0 ? 0 : (i >= n ? n - 1 : i);
   }
 
   // Function to update parameters from the potentiometers
   void updatePotentiometers() {
-    // A0: wave shape, or master volume while shift is held
-    float pot0 = readPotentiometer(WAVESHAPE_PIN, 0.0f, 1.0f);
-    if (shiftActive) {
-      if (takeoverUpdate(volumeCtl, pot0, 0.002f)) {
-        masterVolume = volumeCtl.value;
-        volumeGain = masterVolume * masterVolume;
-      }
-    } else {
-      if (takeoverUpdate(waveShapeCtl, pot0, 0.01f)) {
-        waveShape = waveShapeCtl.value;
-        waveShapeChanged = true;
-      }
+    // A0: wave shape, or master volume while shift is held. The wave-shape
+    // threshold is coarser because it only has four steps.
+    Param p0 = shiftActive ? P_VOLUME : P_WAVESHAPE;
+    float pot0 = readPot(WAVESHAPE_PIN);
+    if (takeoverUpdate(params[p0], pot0, isStepped(p0) ? 0.01f : 0.002f)) {
+      applyParam(p0, params[p0].value);
     }
 
-    // Read ADSR potentiometers (A1-A4)
-    float newAttackTime = readPotentiometer(ATTACK_PIN, 0.001f, 1.0f);
-    float newDecayTime = readPotentiometer(DECAY_PIN, 0.01f, 1.0f);
-    float newSustainLevel = readPotentiometer(SUSTAIN_PIN, 0.0f, 1.0f);
-    float newReleaseTime = readPotentiometer(RELEASE_PIN, 0.01f, 2.0f);
-
-    // Only update if ADSR parameters have changed significantly
-    if (fabs(newAttackTime - attackTime) > 0.001f ||
-        fabs(newDecayTime - decayTime) > 0.001f ||
-        fabs(newSustainLevel - sustainLevel) > 0.001f ||
-        fabs(newReleaseTime - releaseTime) > 0.001f) {
-
-      attackTime = newAttackTime;
-      decayTime = newDecayTime;
-      sustainLevel = newSustainLevel;
-      releaseTime = newReleaseTime;
-      adsrParamsChanged = true;
+    // A1..A4: whatever the current pot mode assigns them
+    for (int i = 0; i < BANK_POTS; i++) {
+      Param p = POT_MODES[potMode][i];
+      if (p == P_NONE) {
+        continue;
+      }
+      float pot = readPot(BANK_FIRST_PIN + i);
+      if (takeoverUpdate(params[p], pot, isStepped(p) ? 0.01f : 0.002f)) {
+        applyParam(p, params[p].value);
+      }
     }
   }
 
@@ -596,6 +855,13 @@ public:
   // both is shift. Once a press has been part of a shift chord it no longer
   // steps the octave, so shift can be used without side effects.
   void auxButton(AuxFn fn, bool pressed) {
+    if (fn >= AUX_POT_MODE_1 && fn <= AUX_POT_MODE_4) {
+      if (pressed) {
+        setPotMode(fn - AUX_POT_MODE_1);
+      }
+      return;
+    }
+
     if (fn == AUX_OCTAVE_DOWN) {
       octDownHeld = pressed;
     } else if (fn == AUX_OCTAVE_UP) {
@@ -715,6 +981,11 @@ public:
 
     // Update parameters from potentiometers
     updatePotentiometers();
+
+    // LED: solid while running, blinking at LFO 1's rate while it does
+    // something, as the only visible sign of the LFO banks.
+    bool lfo1Active = lfos[0].dest != DEST_NONE && lfos[0].depth > 0.0f;
+    hw.SetLed(!lfo1Active || lfos[0].out > 0.0f);
 
     // Update wave shape for all voices if changed
     if (waveShapeChanged) {
@@ -859,8 +1130,110 @@ public:
     }
   }
 
+  // Soft knee above 0.9 so a loud chord folds over rather than clipping
+  static float softLimit(float x) {
+    if (x > 0.9f) {
+      return 0.9f + (x - 0.9f) * 0.1f;
+    }
+    if (x < -0.9f) {
+      return -0.9f + (x + 0.9f) * 0.1f;
+    }
+    return x;
+  }
+
+  // Advance an LFO by one block and leave its output in lfo.out
+  static void stepLfo(Lfo &lfo) {
+    lfo.phase += lfo.rateHz * BLOCK_SECONDS;
+    if (lfo.phase >= 1.0f) {
+      lfo.phase -= (int)lfo.phase;
+      lfo.rng = lfo.rng * 1664525u + 1013904223u;
+      lfo.held = (float)(lfo.rng >> 8) * (2.0f / 16777216.0f) - 1.0f;
+    }
+    switch (lfo.shape) {
+    case LFO_SINE:
+      lfo.out = sinf(lfo.phase * TWOPI_F);
+      break;
+    case LFO_TRI:
+      lfo.out =
+          lfo.phase < 0.5f ? 4.0f * lfo.phase - 1.0f : 3.0f - 4.0f * lfo.phase;
+      break;
+    case LFO_SQUARE:
+      lfo.out = lfo.phase < 0.5f ? 1.0f : -1.0f;
+      break;
+    case LFO_RAMP:
+      lfo.out = 2.0f * lfo.phase - 1.0f;
+      break;
+    default:
+      lfo.out = lfo.held;
+      break;
+    }
+  }
+
+  static float clamp01(float x) {
+    return x < 0.0f ? 0.0f : (x > 1.0f ? 1.0f : x);
+  }
+
   void AudioCallback(AudioHandle::InterleavingInputBuffer in,
                      AudioHandle::InterleavingOutputBuffer out, size_t size) {
+    // Ease the effect controls toward their targets once per block
+    cutoffSmoothed += (filterCutoffHz - cutoffSmoothed) * FX_SMOOTHING;
+    resSmoothed += (filterRes - resSmoothed) * FX_SMOOTHING;
+    delayWetSmoothed += (delayWet - delayWetSmoothed) * FX_SMOOTHING;
+    reverbWetSmoothed += (reverbWet - reverbWetSmoothed) * FX_SMOOTHING;
+
+    // Step the LFOs and gather what each destination gets this block
+    float cutoffOctaves = 0.0f, pitchOctaves = 0.0f, resMod = 0.0f;
+    float delayMod = 0.0f, reverbMod = 0.0f, volMult = 1.0f;
+    for (int l = 0; l < NUM_LFOS; l++) {
+      Lfo &lfo = lfos[l];
+      stepLfo(lfo);
+      float m = lfo.out * lfo.depth;
+      switch (lfo.dest) {
+      case DEST_CUTOFF:
+        cutoffOctaves += m * LFO_CUTOFF_OCTAVES;
+        break;
+      case DEST_RESONANCE:
+        resMod += m;
+        break;
+      case DEST_PITCH:
+        pitchOctaves += lfo.out * lfo.depth * lfo.depth * LFO_PITCH_OCTAVES;
+        break;
+      case DEST_VOLUME:
+        volMult *= 1.0f - lfo.depth * (1.0f - lfo.out) * 0.5f;
+        break;
+      case DEST_DELAY:
+        delayMod += m;
+        break;
+      case DEST_REVERB:
+        reverbMod += m;
+        break;
+      default:
+        break;
+      }
+    }
+
+    // Effective values for this block: the knob's smoothed value plus the LFOs
+    float cutoffHz = cutoffSmoothed * powf(2.0f, cutoffOctaves);
+    float cutoffMax = CUTOFF_MIN_HZ * powf(2.0f, CUTOFF_OCTAVES);
+    cutoffHz = cutoffHz < CUTOFF_MIN_HZ
+                   ? CUTOFF_MIN_HZ
+                   : (cutoffHz > cutoffMax ? cutoffMax : cutoffHz);
+    float res = clamp01((resSmoothed + resMod * RES_MAX) / RES_MAX) * RES_MAX;
+    float delayLevel = clamp01(delayWetSmoothed + delayMod);
+    float reverbLevel =
+        clamp01(reverbWetSmoothed + reverbMod) * REVERB_WET_SCALE;
+    filter.SetFreq(cutoffHz);
+    filter.SetRes(res);
+    float delayFeedback = delayLevel * DELAY_FEEDBACK_MAX;
+
+    // Pitch: retune the sounding voices around their note
+    float pitchMult = powf(2.0f, pitchOctaves);
+    for (int v = 0; v < NUM_VOICES; v++) {
+      if (voices[v].isActive) {
+        voices[v].osc.SetFreq(voices[v].frequency * pitchMult);
+      }
+    }
+
     for (size_t i = 0; i < size; i += 2) {
       float output = 0.0f;
 
@@ -889,20 +1262,36 @@ public:
         }
       }
 
-      // Apply soft limiting to prevent clipping
-      if (output > 0.9f) {
-        output = 0.9f + (output - 0.9f) * 0.1f;
-      } else if (output < -0.9f) {
-        output = -0.9f + (output + 0.9f) * 0.1f;
+      // Keep the mix within the filter's safe range, then low-pass it. If
+      // the filter state has gone non-finite anyway, restart it clean rather
+      // than let the NaN spread into the delay and reverb lines.
+      output = softLimit(output);
+      filter.Process(output);
+      output = filter.Low();
+      if (!(output == output)) {
+        filter.Init(SAMPLE_RATE);
+        filter.SetDrive(0.0f);
+        filter.SetFreq(cutoffHz);
+        filter.SetRes(res);
+        output = 0.0f;
       }
+
+      // Echo: the line holds the dry signal plus its own decaying repeats
+      float echo = delayLine.Read();
+      delayLine.Write(output + echo * delayFeedback);
+      output += echo * delayLevel;
+
+      // Reverb, which is where the two channels part ways
+      float verbL, verbR;
+      reverb.Process(output, output, &verbL, &verbR);
+      float left = softLimit(output + verbL * reverbLevel);
+      float right = softLimit(output + verbR * reverbLevel);
 
       // Master volume, eased over ~40 ms so turning the knob doesn't zipper
       gainSmoothed += (volumeGain - gainSmoothed) * 0.0005f;
-      output *= gainSmoothed;
 
-      // Same signal to both channels
-      out[i] = output;     // Left channel
-      out[i + 1] = output; // Right channel
+      out[i] = left * gainSmoothed * volMult;
+      out[i + 1] = right * gainSmoothed * volMult;
     }
   }
 
@@ -931,8 +1320,8 @@ SynthMachine synth;
 // than a reset? The bootloader leaves its USB clock enabled; a cold boot never
 // has one enabled this early. Read before anything else touches RCC.
 static bool BootedFromDfu() {
-  return (RCC->AHB1ENR &
-          (RCC_AHB1ENR_USB2OTGFSEN | RCC_AHB1ENR_USB1OTGHSEN)) != 0;
+  return (RCC->AHB1ENR & (RCC_AHB1ENR_USB2OTGFSEN | RCC_AHB1ENR_USB1OTGHSEN)) !=
+         0;
 }
 
 // Audio callback function for DaisyLib
