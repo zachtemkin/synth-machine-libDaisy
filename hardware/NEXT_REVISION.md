@@ -30,7 +30,33 @@ Then:
 Two parts. Firmware change: `SpeakerAmp` on the carrier profile becomes
 push-pull like the prototype, with inverted sense.
 
-## 2. Worth considering
+## 2. A display header on a real SPI port
+
+**Problem.** The expansion header J8 brings out D26, D27 and A5..A8, and
+none of those form a complete hardware SPI or I2C port. SPI1's clock and
+chip-select are there (A7 = PA5, A8 = PA4) but its data-out is PA7, the A3
+pot, or PB5, the C4 key. I2C1 is on D11/D12 or D13/D14: the speaker mute,
+an unconnected pin, and the headphone detect and mute. So a display on the
+current board has to be bit-banged, which is fine for a 128x64 monochrome
+OLED (about 1 KB per frame) and too slow for a colour TFT (about 150 KB).
+
+**Fix.** Free SPI1 and give it a header:
+
+- move the A3 pot's wiper to A9 (D24), which is unused, so PA7 (A3) becomes
+  SPI1 MOSI;
+- add a display header J9 carrying SCK (A7), MOSI (A3), NSS (A8), a
+  data/command line and a reset line (D26, D27, or two of A5/A6), +3V3, +5V
+  and GND. Keep D26/D27 on J8 as well if they are used for the panel LED;
+- firmware: `adcConfig[3]` moves to A9, and libDaisy's `OledDisplay` with
+  the `SSD130x4WireSpiTransport` on SPI1 then drives the usual SSD1306 /
+  SH1106 modules with DMA, and an ILI9341-class TFT becomes possible.
+
+No second controller is needed for any of this: the Seed's 3V3 rail has a
+few hundred milliamps of headroom shared with the headphone amp, an OLED
+draws around 20 mA, and a TFT backlight can run from the +5V pin. Only a
+large colour UI would justify a display module with its own processor.
+
+## 3. Worth considering
 
 - **ESD protection on the USB-C data lines.** There is none today; the
   STM32's pins are left to absorb whatever a plug or a finger delivers. A
