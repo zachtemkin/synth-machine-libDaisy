@@ -166,6 +166,40 @@ probably an encoder bank or an encoder button.
 
 ## 6. Worth considering
 
+- **All 19 key headers in one row.** v0.3 and v0.4 split them 10 down the
+  left edge and 9 along the bottom, so the panel leads run two ways and vary
+  a lot in length. A landscape board (about 160 x 60 mm) with K1..K19 in a
+  single row along the bottom, in panel order, makes every lead the same
+  length and direction. A JST-XH 2-pin header is 7.5 mm wide, so 19 in a row
+  is about 150 mm with 0.5 mm gaps; if that is too wide, stagger them like a
+  keyboard, two rows offset by half a pitch, which fits in about 80 mm and
+  keeps neighbours together. The diode stays beside its header either way.
+  This leaves the 100 x 100 mm price tier; a 2-layer board that size costs a
+  few dollars more.
+- **Panel RGB LED.** A JST-XH header and SMD series resistors for a
+  panel-mount status LED (MIDI activity, headphone detect, battery, LFO). A
+  plain common-cathode RGB LED on a 4-pin XH (R, G, B, GND) needs three 0805
+  resistors (about 150R red, 100R green and blue at 3V3) on three PWM-capable
+  spare pins; on v0.4 that means A5, A6, A10 or A11 from J8. An addressable
+  WS2812B/SK6812 on a 3-pin XH (5V, DATA, GND) needs one 330R and one GPIO,
+  but the Seed's 3V3 data level is marginal for a 5V-powered WS2812B, so add a
+  level shifter or pick a part specified for 3V3 logic. With the seesaw
+  encoders (item 4) each knob already has an RGB LED, which may cover this.
+- **Onboard power: LiPo with USB charging.** A single-cell LiPo on a JST-PH
+  2-pin (Adafruit/SparkFun polarity), charged from the USB-C VBUS. The catch:
+  the Seed's VIN wants 4 to 17 V and the MAX98306 runs from +5V, so a 3.0 to
+  4.2 V cell cannot feed them directly. The battery needs a 5 V boost sized
+  for the amp (2 A peak, so a TPS61088/TPS61023 class part, not a tiny one),
+  and a charger with a real power path (BQ24074 or MCP73871) so the synth runs
+  from USB while charging and switches to the cell when unplugged. A one-chip
+  power-bank IC like the IP5306 is tempting but shuts itself off at low load,
+  which a synth idling on the panel will trigger. Also needed: a real power
+  switch (VBUS is always on today), cell protection (a protected cell, or
+  DW01 + FS8205 on the board), a divider from the cell to a spare ADC pin so
+  firmware can read the battery, and a charge-status output the LED above can
+  show. Rename the rails while doing it: VBUS -> charger -> VSYS -> boost ->
+  +5V, with F1 staying on the USB input. A 2000 mAh or larger cell is about
+  right given the speakers can pull over 1 A at full volume.
 - **ESD protection on the USB-C data lines.** There is none today; the
   STM32's pins are left to absorb whatever a plug or a finger delivers. A
   USBLC6-2SC6 (SOT-23-6, low capacitance, LCSC C7519) next to J1: D+ and D-
