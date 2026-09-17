@@ -1,6 +1,6 @@
 #!/bin/sh
 # Produce the fabrication package for synth_machine (JLCPCB / PCBWay).
-#   sh hardware/fab.sh            -> hardware/fab/synth_machine_gerbers.zip (+ BOM, position CSV)
+#   sh hardware/v0.3/fab.sh       -> hardware/v0.3/fab/synth_machine_gerbers.zip (+ BOM, position CSV)
 # Settings follow JLCPCB's and PCBWay's KiCad guides: Protel extensions, solder mask
 # subtracted from silk, no netlist attributes, Excellon drill in mm with PTH+NPTH merged.
 set -e

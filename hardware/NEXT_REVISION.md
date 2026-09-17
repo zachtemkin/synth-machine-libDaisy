@@ -1,7 +1,7 @@
 # Carrier board: changes for the next revision
 
 Running list of things to change when the carrier board is respun. The v0.3
-boards in production work with the firmware as of September 2026; everything
+boards (`v0.3/`) in production work with the firmware as of September 2026; everything
 here is a nicety or a robustness fix, not a blocker.
 
 **Status:** items 1 to 5 and the ESD protection from item 6 are implemented

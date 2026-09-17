@@ -5,8 +5,8 @@ Autoroute synth_machine.kicad_pcb with Freerouting and add/fill the ground pours
 Run with KiCad's bundled Python (needs pcbnew):
 
   KICAD_PY=/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3
-  $KICAD_PY hardware/route.py --java /path/to/java --jar /path/to/freerouting.jar [--passes 100]
-  $KICAD_PY hardware/route.py --pours-only        # keep the tracks, just rebuild the GND pours
+  $KICAD_PY hardware/v0.3/route.py --java /path/to/java --jar /path/to/freerouting.jar [--passes 100]
+  $KICAD_PY hardware/v0.3/route.py --pours-only        # keep the tracks, just rebuild the GND pours
 
 Freerouting 2.x needs Java 25 (https://adoptium.net); the jar comes from
 https://github.com/freerouting/freerouting/releases.

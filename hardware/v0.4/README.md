@@ -1,6 +1,6 @@
 # synthMachine carrier board v0.4
 
-Revision of the carrier in `../` (v0.3, the boards that were fabricated in
+Revision of the carrier in `../v0.3/` (the boards that were fabricated in
 September 2026). Same 100 x 100 mm outline, same Seed position, same key,
 pot, speaker and jack headers, so the v0.3 panel wiring and enclosure cutouts
 carry over. What changed comes straight from `../NEXT_REVISION.md`:

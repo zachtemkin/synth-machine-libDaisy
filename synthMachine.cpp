@@ -65,7 +65,7 @@ using namespace daisy::seed;
  *   speakers, plus a headphone path that mutes the speakers when a plug is in.
  * - D11 mutes the speaker amp on both boards, but the drive differs (see
  *   SpeakerAmp below). D13/D14 are the headphone detect and headphone amp mute
- *   on the carrier only. Wiring: WIRING.md (prototype), hardware/README.md
+ *   on the carrier only. Wiring: WIRING.md (prototype), hardware/v0.3/README.md
  *   (carrier).
  */
 
@@ -80,7 +80,7 @@ using namespace daisy::seed;
 //   breakout.
 //                                         D11 goes straight to the amp's SD
 //                                         pin. No headphone jack.
-//   make HW=carrier   SYNTH_HW_CARRIER    Carrier board v0.3 in hardware/. D11
+//   make HW=carrier   SYNTH_HW_CARRIER    Carrier board v0.3 in hardware/v0.3/. D11
 //                                         mutes through transistor Q1,
 //                                         TPA6138A2 headphone amp with plug
 //                                         detect on D13/D14.

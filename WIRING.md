@@ -105,7 +105,7 @@ so MIDI only appears after a reset.
 
 `SetSpeakersEnabled(false)` can be used as a software mute if you ever want one.
 
-The carrier board (`hardware/`) wires D11 differently and adds a headphone jack
+The carrier board (`hardware/v0.3/`) wires D11 differently and adds a headphone jack
 on D13/D14; build for it with `make HW=carrier`. See `hardware/README.md`.
 
 ## First power-up

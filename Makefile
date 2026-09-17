@@ -8,7 +8,7 @@ CPP_SOURCES = synthMachine.cpp
 # share stale objects, and `make <flags> program-dfu` flashes that variant.
 #
 #   HW=prototype   (default) breadboard prototype, see WIRING.md
-#   HW=carrier     carrier board v0.3, see hardware/
+#   HW=carrier     carrier board v0.3, see hardware/v0.3/
 #   HW=carrier4    carrier board v0.4, see hardware/v0.4/
 #   KEYLOG=1       diagnostic build: prints key events on the Seed's micro-USB
 #                  serial port instead of running MIDI, to find button nodes
