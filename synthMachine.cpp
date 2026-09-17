@@ -103,9 +103,27 @@ using namespace daisy::seed;
 #define SYNTH_KEY_LOG 0
 #endif
 
+// `make POTS=none` builds with SYNTH_NO_POTS: the pots are never read and
+// every parameter keeps its default, for a board whose pots aren't wired yet.
+
+// `make HP_DET=adc` builds with SYNTH_HP_DET_ADC (carrier only): the plug
+// detect is read through the ADC on A5 instead of D13, which needs a wire from
+// EXP pin 8 (HP_DET) to EXP pin 4 (A5). On the v0.3 carrier HP_DET can't
+// reach a digital high: Q1's base-emitter junction, fed through R5, clamps it
+// at about 0.8 V with a plug in (0 V without), so D13 reads low either way
+// and the headphone amp would never be unmuted. See hardware/NEXT_REVISION.md.
+#if defined(SYNTH_HP_DET_ADC) && !defined(SYNTH_HW_CARRIER)
+#error "HP_DET=adc only applies to the carrier board (HW=carrier)"
+#endif
+
 // USB MIDI transport. EXTERNAL is the D29/D30 pair (USB-C on both boards).
-// Switch to INTERNAL to get MIDI on the Seed's own micro-USB for a quick test.
+// `make MIDI_USB=seed` selects INTERNAL, the Seed's own USB port, for a
+// carrier built without its USB-C, or for a quick test.
+#if defined(SYNTH_MIDI_USB_SEED)
+static constexpr auto USB_MIDI_PERIPH = MidiUsbTransport::Config::INTERNAL;
+#else
 static constexpr auto USB_MIDI_PERIPH = MidiUsbTransport::Config::EXTERNAL;
+#endif
 
 // Pin definitions - must be defined outside the class
 static constexpr Pin COL_PINS[6] = {seed::D4, seed::D5, seed::D6,
@@ -118,6 +136,17 @@ static constexpr Pin SPEAKER_MUTE_PIN = seed::D11;
 #if defined(SYNTH_HW_CARRIER)
 static constexpr Pin HP_DET_PIN = seed::D13;  // jack switch: high = plug in
 static constexpr Pin HP_MUTE_PIN = seed::D14; // TPA6138A2 ~MUTE, active low
+#endif
+
+// ADC channels: A0..A4 are the pots; with HP_DET=adc, channel 5 is A5.
+#if defined(SYNTH_HP_DET_ADC)
+static constexpr int NUM_ADC_CHANNELS = 6;
+static constexpr int HP_DET_ADC_CHANNEL = 5;
+// Plug in: about 0.8 V of 3.3 V. Out: about 0 V. Hysteresis between.
+static constexpr float HP_DET_ADC_HIGH = 0.15f; // above this (0.5 V) = in
+static constexpr float HP_DET_ADC_LOW = 0.08f;  // below this (0.26 V) = out
+#else
+static constexpr int NUM_ADC_CHANNELS = 5;
 #endif
 
 // Functions the spare matrix buttons can have
@@ -200,14 +229,29 @@ public:
 // remember whether a plug is in.
 class HeadphoneJack {
 #if defined(SYNTH_HW_CARRIER)
-  GPIO detect; // D13: HP_DET, high = plug inserted
   GPIO hpMute; // D14: TPA6138A2 ~MUTE, low = headphone amp muted
+#if defined(SYNTH_HP_DET_ADC)
+  DaisySeed *seed = nullptr; // HP_DET arrives on A5, see SYNTH_HP_DET_ADC
+#else
+  GPIO detect; // D13: HP_DET, high = plug inserted
+#endif
   int level = 0;
   bool pluggedIn = false;
   static const int DEBOUNCE_SAMPLES = 5; // x ~10 ms main-loop period
 
+  // Raw plug reading for this pass, before debouncing
+  bool DetectRaw() {
+#if defined(SYNTH_HP_DET_ADC)
+    float v = seed->adc.GetFloat(HP_DET_ADC_CHANNEL);
+    return v > (pluggedIn ? HP_DET_ADC_LOW : HP_DET_ADC_HIGH);
+#else
+    return detect.Read();
+#endif
+  }
+
 public:
-  void Init() {
+  // Runs before hw.Init(); the ADC (if used) is only read from Update().
+  void Init(DaisySeed &hw) {
     // Mute the headphone amp from the first instruction. Besides the boot
     // pop, this matters while nothing is plugged in: the jack's switch then
     // ties HP_DET to the headphone amp's left output, and audio peaks on
@@ -215,7 +259,12 @@ public:
     // amp holds the node near ground.
     hpMute.Init(HP_MUTE_PIN, GPIO::Mode::OUTPUT, GPIO::Pull::NOPULL);
     hpMute.Write(false);
+#if defined(SYNTH_HP_DET_ADC)
+    seed = &hw;
+#else
+    (void)hw;
     detect.Init(HP_DET_PIN, GPIO::Mode::INPUT, GPIO::Pull::NOPULL);
+#endif
   }
 
   // Call once per main-loop pass. Integrating debounce: the count climbs while
@@ -223,7 +272,7 @@ public:
   // at the ends of the range. Audio on the node (centred on 0 V) can't hold
   // it high, so an unplug is still recognised while a note is sounding.
   void Update() {
-    if (detect.Read()) {
+    if (DetectRaw()) {
       if (level < DEBOUNCE_SAMPLES)
         level++;
     } else if (level > 0) {
@@ -242,7 +291,7 @@ public:
   bool IsPluggedIn() const { return pluggedIn; }
 #else
 public:
-  void Init() {}
+  void Init(DaisySeed &) {}
   void Update() {}
   bool IsPluggedIn() const { return false; }
 #endif
@@ -611,7 +660,7 @@ public:
     // its own port clock, so this works ahead of hw.Init(), and hw.Init() is
     // where the codec is brought up, which is the source of the start-up pop.
     speakerAmp.Init();
-    headphoneJack.Init();
+    headphoneJack.Init(hw);
 
     // Initialize Daisy Seed (this also brings up the SDRAM)
     hw.Init();
@@ -635,14 +684,18 @@ public:
         "synthMachine key log: KEY <col> <row> <carrier name> down|up");
 #endif
 
-    // Initialize ADC for external potentiometers
-    AdcChannelConfig adcConfig[5];
+    // Initialize ADC for external potentiometers (and the plug detect if it
+    // comes in through A5)
+    AdcChannelConfig adcConfig[NUM_ADC_CHANNELS];
     adcConfig[0].InitSingle(seed::A0); // Wave shape
     adcConfig[1].InitSingle(seed::A1); // Attack
     adcConfig[2].InitSingle(seed::A2); // Decay
     adcConfig[3].InitSingle(seed::A3); // Sustain
     adcConfig[4].InitSingle(seed::A4); // Release
-    hw.adc.Init(adcConfig, 5);
+#if defined(SYNTH_HP_DET_ADC)
+    adcConfig[HP_DET_ADC_CHANNEL].InitSingle(seed::A5); // HP_DET via jumper
+#endif
+    hw.adc.Init(adcConfig, NUM_ADC_CHANNELS);
     hw.adc.Start();
 
     // Initialize matrix pins for new scanning strategy
@@ -819,6 +872,11 @@ public:
 
   // Function to update parameters from the potentiometers
   void updatePotentiometers() {
+#if defined(SYNTH_NO_POTS)
+    // `make POTS=none`: nothing is on the pot headers, so the ADC inputs
+    // float. Leave every parameter at its built-in default.
+    return;
+#endif
     // A0: wave shape, or master volume while shift is held. The wave-shape
     // threshold is coarser because it only has four steps.
     Param p0 = shiftActive ? P_VOLUME : P_WAVESHAPE;

@@ -30,7 +30,26 @@ Then:
 Two parts. Firmware change: `SpeakerAmp` on the carrier profile becomes
 push-pull like the prototype, with inverted sense.
 
-## 2. A display header on a real SPI port
+## 2. Let HP_DET reach a digital high (Q1 as a MOSFET)
+
+**Problem.** Measured on a v0.3 board: HP_DET reads about 0.8 V with a plug
+in, not 3V3. R3 (100k) pulls the node up through R5 (10k) into Q1's
+base-emitter junction, so it can never rise above a diode drop plus a tenth
+of the remaining swing. Q1 still turns on, so the hardware speaker mute
+works, but D13 reads low either way and the firmware cannot tell a plug is
+in. The work-around on v0.3 is a wire from EXP pin 8 to EXP pin 4 and
+`make HP_DET=adc`, which reads the node through the ADC.
+
+**Fix.** Make Q1 a small N-MOSFET (2N7002, SOT-23): gate from HP_DET through
+R5, source to GND, drain on AMP_SD. A gate draws no current, so HP_DET goes
+to the full 3V3 when the jack's contact opens and D13 reads it directly. The
+MOSFET's threshold (about 1 to 2 V) is also well clear of the audio peaks on
+the node while unplugged, which the BJT's 0.65 V was not. If item 1's second
+transistor for MUTE is added, make that a 2N7002 as well and the two drains
+form the wired-OR on AMP_SD. Firmware: `HP_DET=adc` becomes unnecessary; the
+default D13 path works.
+
+## 3. A display header on a real SPI port
 
 **Problem.** The expansion header J8 brings out D26, D27 and A5..A8, and
 none of those form a complete hardware SPI or I2C port. SPI1's clock and
@@ -56,7 +75,92 @@ few hundred milliamps of headroom shared with the headphone amp, an OLED
 draws around 20 mA, and a TFT backlight can run from the +5V pin. Only a
 large colour UI would justify a display module with its own processor.
 
-## 3. Worth considering
+**Sharp memory display (Adafruit 4694, 2.7" 400x240).** The other candidate,
+and the one that reads best across a panel in room light. It needs only
+clock, data and an active-high chip select plus power, its own clock ceiling
+is 2 MHz, and it is line-addressed, so bit-banging from today's EXP header
+(D26, D27, A5) is as fast as hardware SPI would be. It therefore works the
+same on v0.3 and on the next revision, and the display header above should
+carry its three lines too so either display can plug in. Things to plan for
+in firmware rather than hardware: a 12 KB frame buffer, redraws spread over
+several main-loop passes (a full frame is 50 to 100 ms on the wire, changed
+lines only are quick), and a VCOM toggle at least once a second even when
+nothing changes, which the breakout expects from software by default. It is
+reflective with no backlight, so it is invisible in the dark; that is the
+one case for the OLED instead.
+
+## 4. Rotary encoders over I2C in place of pots 2 to 5
+
+**Idea.** Keep the leftmost pot as an absolute master volume and replace the
+other four with rotary encoders on Adafruit seesaw breakouts, connected over
+STEMMA QT. Do this together with the display (item 3): an encoder has no
+visible position, so it needs a screen or per-knob lighting to be usable.
+
+**Why it fits this design.**
+
+- Encoders are relative, so each pot bank keeps its own values and a turn
+  nudges the current one. The takeover mechanism in the firmware goes away
+  for those four controls, and switching banks can never make a sound jump.
+- Every Adafruit encoder has a push button: select the bank, reset a value,
+  or toggle coarse/fine. The four mode buttons then become free for other
+  jobs (LFO retrigger, tap tempo).
+- Each seesaw encoder has an RGB LED under the knob, which gives a colour
+  per bank and level or LFO feedback before the display exists.
+
+**Seesaw rather than direct encoders.** The breakout's own MCU does the
+quadrature decoding and button debounce, so fast spins never drop steps, and
+the panel wiring is one 4-wire cable. Direct encoders would take 12 Seed
+pins and need polling at about 1 kHz, which the 10 ms main loop cannot do
+without moving it into the audio callback or a timer.
+
+**Which breakout.** The quad board (Adafruit 5752) is one part and one I2C
+address, but its four encoders sit on the breakout at a fixed spacing, so it
+dictates the knob layout. Four single boards (Adafruit 4991) chain over
+STEMMA QT with jumper-selectable addresses and let the knobs go anywhere on
+the panel. Prefer the singles unless the quad's spacing happens to fit.
+
+**Board changes.**
+
+- Free an I2C port: none is free on v0.3. Move the speaker mute from D11 to
+  the unused D0, which frees D11/D12 as I2C1 SCL/SDA. A1..A4 then become
+  spare, which also helps item 3.
+- A STEMMA QT connector (JST SH 1.0 mm 4-pin, SMD) on a board edge, in the
+  PCBWay assembly order. Footprints for 4.7k pull-ups on SCL/SDA, DNP by
+  default since the breakouts carry their own.
+- Optionally the seesaw INT line to a spare GPIO so firmware polls only when
+  something moved; polling every 10 ms works without it.
+
+**Firmware.** Reading four counts and four buttons at 400 kHz takes well
+under a millisecond per pass. Add acceleration so a fast spin sweeps a
+parameter across its range while a slow one gives fine steps; 24 detents
+per turn is coarse on its own. The callback-side smoothing the effects
+already have hides the stepped feel of detents on slow filter sweeps.
+
+**Cautions.** Keep the I2C cable short and away from the speaker wires; the
+class-D amp is a noise source and I2C has no tolerance for glitches. Wave
+shape, which lives on the volume pot behind shift today, needs a new home,
+probably an encoder bank or an encoder button.
+
+## 5. Assembly and fit
+
+- **Have PCBWay place the USB-C receptacle and the JST connectors.** The
+  GCT USB4105 (J1) has 0.5 mm pitch pads and a pair of through-hole shell
+  tabs, and hand-soldering it on the v0.3 board did not go well; the first
+  unit runs from a USB-C breakout wired to F1 and the Seed socket instead.
+  The 19 JST-XH key headers, the 5 pot headers and the 2 JST-PH speaker
+  headers are simple but numerous. Order the next run with assembly for at
+  least J1 and all the JST headers (K1..K19, J10..J14, J5/J6); the Seed
+  sockets, C1, the jack and the fuse can go in the same job or stay hand
+  fitted.
+- **F1 collides with the Seed.** The Bourns MF-R250 radial PTC at (22, 12)
+  overlaps the Seed's socket, so on v0.3 it cannot be fitted with the Seed
+  in place. Either move F1 clear of the socket outline, toward the USB-C
+  and away from U1 by at least the disc's radius plus a few millimetres, or
+  change it to an SMD PTC of the same rating, for example the Bourns
+  MF-MSMF250 (1812, 2.5 A hold), which is low enough to sit anywhere next to
+  the port and can be placed by the assembler along with J1.
+
+## 6. Worth considering
 
 - **ESD protection on the USB-C data lines.** There is none today; the
   STM32's pins are left to absorb whatever a plug or a finger delivers. A

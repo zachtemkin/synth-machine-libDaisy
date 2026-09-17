@@ -55,7 +55,7 @@ for the amp-to-bead speaker lines.
 | Speaker amp | U3 MAX98306ETD+T (TDFN-14 EP), C16..C19 1u, C14 10u, C15 100n, R13/R14 100k, JP1 | Adafruit #987's circuit on the board, single-ended inputs from the Seed line out. Gain 9 dB via R13 (about 2 W into 4 ohm); JP1 straps GAIN to GND (18 dB) or PVDD (12 dB); no R13 and JP1 open = 6 dB. R14 pulls ~SHDN up, Q1 pulls it low to mute. |
 | Speakers | FB1..FB4 0805 beads + C2..C5 220p, J5/J6 JST-PH | MAX98306 datasheet EMI filter, then the JST-PH sockets that match the Adafruit speaker plugs. |
 | Headphone amp | U2 TPA6138A2PWR (TSSOP-14), C7/C8 1u, R8..R11 10k, C9/C10 47p, C11/C12 1u, C13 10u, R12 100k | DirectPath: ground-centred output, no output caps, 40 mW into 32 ohm from 3V3. Unity gain (raise R9/R11 for more). Mute active-low, pulled up by R12, D14 can mute it. |
-| Headphone jack | J7 CUI SJ1-3515N on the top edge, R3 100k, R4 10k, R5/R6 10k, Q1 MMBT3904 | Tip/ring from U2. The NC switch contact is the plug detect: near 0 V unplugged, 3V3 plugged. Q1 then mutes the speaker amp. D11 = firmware speaker mute, D13 reads HP_DET. |
+| Headphone jack | J7 CUI SJ1-3515N on the top edge, R3 100k, R4 10k, R5/R6 10k, Q1 MMBT3904 | Tip/ring from U2. The NC switch contact is the plug detect: near 0 V unplugged, about 0.8 V plugged (Q1's base clamps it, see below). Q1 then mutes the speaker amp. D11 = firmware speaker mute, D13 reads HP_DET. |
 | Expansion | J8 1x12, fit a female socket | HP_MUTE, D26, D27, A5..A8, HP_DET, MUTE, 3V3, 5V, GND. |
 | Mounting | H1..H4 M3, 5 mm in from each corner | |
 
@@ -112,6 +112,21 @@ Digi-Key list for those plus the XH housings/contacts, pots and speakers.
 `make` targets the breadboard prototype). The carrier profile enables
 `EXTERNAL` USB MIDI, drives the speaker mute on D11 with the rules below, reads
 HP_DET on D13 and holds HP_MUTE (D14) low until a plug is detected.
+
+**v0.3 bug: D13 never sees the plug.** With headphones in, HP_DET only rises
+to about 0.8 V, not 3V3: R3 (100k) pulls up through R5 (10k) into Q1's
+base-emitter junction, and the divider settles at a diode drop plus a little.
+That is enough to switch Q1 on and mute the speakers in hardware, but a digital
+input reads it as low, so the firmware never unmutes the headphone amp. The
+fix on existing boards is a wire from EXP pin 8 (HP_DET) to EXP pin 4 (A5) and
+a firmware built with `HP_DET=adc`, which reads the plug detect through the
+ADC with a 0.5 V threshold. The proper fix is in `NEXT_REVISION.md`.
+
+**Board without its USB-C.** J1 is the only source of +5V, and the Seed does
+not pass its own USB supply out through VIN. A carrier built without J1 needs
+5 V fed into EXP pin 11 (+5V) with ground on pin 12, or the speaker amp is
+unpowered. MIDI then goes through the Seed's own port: build with
+`MIDI_USB=seed`.
 
 BTN1 and BTN2 (the left-hand pair on the panel, c0 r0 and c0 r1) are octave
 down and up; holding both is shift, which turns the wave-shape pot into master
