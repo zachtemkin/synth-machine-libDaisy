@@ -721,7 +721,11 @@ public:
     adcConfig[0].InitSingle(seed::A0); // Wave shape
     adcConfig[1].InitSingle(seed::A1); // Attack
     adcConfig[2].InitSingle(seed::A2); // Decay
-    adcConfig[3].InitSingle(seed::A3); // Sustain (v0.4: unused, A3 is SPI MOSI)
+#if defined(SYNTH_HW_CARRIER_V4)
+    adcConfig[3].InitSingle(seed::A9); // not read on v0.4; keeps A3 free for the display's SPI MOSI
+#else
+    adcConfig[3].InitSingle(seed::A3); // Sustain
+#endif
     adcConfig[4].InitSingle(seed::A4); // Release
 #if defined(SYNTH_HP_DET_ADC)
     adcConfig[HP_DET_ADC_CHANNEL].InitSingle(seed::A5); // HP_DET via jumper
