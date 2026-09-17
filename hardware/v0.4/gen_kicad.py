@@ -12,6 +12,13 @@ v0.4 changes against v0.3 (see ../NEXT_REVISION.md):
   - USBLC6-2SC6 ESD protection on the USB-C data lines.
   - F1 is an SMD 1812 PTC (the radial one collided with the Seed).
   - Every part carries an MPN for PCBWay assembly (fab.sh writes the BOM).
+  - 160 x 74 mm landscape board with all 19 key headers in one row along the
+    bottom edge, in panel order, so every button lead is the same length.
+  - Onboard single-cell LiPo power: BQ24074 charger with power path from the
+    USB-C, TPS61023 5 V boost for the Seed VIN and the speaker amp, panel
+    power switch header (or solder jumper), battery voltage divider to A10,
+    charge and USB-present status to A5 / A11.  Rails: VBUS -> F1 -> VUSB ->
+    charger -> VSYS -> boost -> +5V.  Use a protected cell.
 
 Run with KiCad's bundled Python so the PCB half can use pcbnew:
 
@@ -30,7 +37,8 @@ path so "Update PCB from Schematic" keeps working after you edit either side.
 Pin usage mirrors synthMachine.cpp (HW=carrier4):
   matrix columns D4..D9, rows D1..D3, direct C4 key on D10, pots on A0, A1, A2,
   A9, A4, MUTE on D0, HP_DET D13, HP_MUTE D14, I2C1 on D11/D12, SPI1 on
-  A7/A3/A8 with D26/D27, external USB (MIDI) on D29/D30, audio out L/R.
+  A7/A3/A8 with D26/D27, external USB (MIDI) on D29/D30, audio out L/R,
+  battery: A10 = VBAT/2, A5 = ~CHG, A11 = ~PGOOD (USB present).
 """
 import os, re, uuid, json, sys
 
@@ -43,9 +51,11 @@ FPDIR = os.path.join(KICAD_SHARE, "footprints")
 # ---------------------------------------------------------------------------
 # Tunables you will probably want to touch
 # ---------------------------------------------------------------------------
-# Compact carrier: nothing has to line up with the panel any more (buttons and pots come in
-# on JST-XH leads), so the board is 100 x 100 mm (JLCPCB's cheapest tier) and mounts anywhere.
-BOARD_W, BOARD_H, CORNER_R = 100.0, 100.0, 3.0
+# Landscape carrier: nothing has to line up with the panel (buttons and pots come in on JST-XH
+# leads), but the 19 key headers sit in one row along the bottom edge in panel order so every
+# lead is the same length and points the same way.  160 x 74 mm; the Seed stands vertical with
+# its USB on the top edge next to the board's USB-C and the headphone jack.
+BOARD_W, BOARD_H, CORNER_R = 160.0, 74.0, 3.0
 # Legacy arcade-button-on-board footprint (kept in the project lib, unused): tabs 2.8 mm wide,
 # 9.05 mm outer-to-outer -> 6.25 mm centre-to-centre; Keystone 3534 receptacles.
 TAB_PITCH = 9.05 - 2.8
@@ -113,15 +123,15 @@ SEED_PINS = {
     24: ("A2/D17", "bidirectional", "POT_3"),
     25: ("A3/D18", "bidirectional", "SPI_MOSI"),    # SPI1 MOSI (PA7) for the display
     26: ("A4/D19", "bidirectional", "POT_5"),
-    27: ("A5/D20", "bidirectional", "EXP_A5"),
+    27: ("A5/D20", "bidirectional", "CHG_STAT"),     # ~CHG from the charger, low = charging
     28: ("A6/D21", "bidirectional", "EXP_A6"),
     29: ("A7/D22", "bidirectional", "SPI_SCK"),     # SPI1 SCK (PA5)
     30: ("A8/D23", "bidirectional", "SPI_NSS"),     # SPI1 NSS (PA4)
     31: ("A9/D24", "bidirectional", "POT_4"),       # was A3 on v0.3
-    32: ("A10/D25", "bidirectional", "EXP_A10"),
+    32: ("A10/D25", "bidirectional", "VBAT_SENSE"),  # battery voltage / 2
     33: ("D26", "bidirectional", "DISP_DC"),
     34: ("D27", "bidirectional", "DISP_RST"),
-    35: ("A11/D28", "bidirectional", "EXP_A11"),
+    35: ("A11/D28", "bidirectional", "USB_PGOOD"),   # ~PGOOD from the charger, low = USB present
     36: ("D29/USB_D-", "bidirectional", "USB_DM"),
     37: ("D30/USB_D+", "bidirectional", "USB_DP"),
     38: ("+3V3D", "power_out", "+3V3"),
@@ -139,9 +149,10 @@ add("U1", "SynthMachine:DaisySeed", "Daisy Seed / Seed3", "SynthMachine:DaisySee
     mpn="PPTC201LFBN-RC x2 (sockets; the Seed itself is fitted by hand)")
 
 # --- Keys: one JST-XH 2-pin header per button, buttons live on the panel ------------------
-# (name, (col,row) or None for the direct C4 key).  The first 10 go down the left edge,
-# the remaining 9 along the bottom edge.  Matrix as scanButtonMatrix(): columns D4..D9 driven
-# low, rows D1..D3 read with pull-ups; diode anode to the switch, cathode to the column.
+# (name, (col,row) or None for the direct C4 key).  All 19 in one row along the bottom edge in
+# panel order, headers rotated so the row is 7 mm pitch, each diode directly above its header
+# and the key name below it.  Matrix as scanButtonMatrix(): columns D4..D9 driven low, rows
+# D1..D3 read with pull-ups; diode anode to the switch, cathode to the column.
 KEYS = [
     ("C4", None), ("C#4", (5, 0)), ("D4", (5, 1)), ("D#4", (4, 1)), ("E4", (5, 2)),
     ("F4", (4, 2)), ("F#4", (3, 1)), ("G4", (3, 2)), ("G#4", (2, 1)), ("A4", (2, 2)),
@@ -152,19 +163,14 @@ XH2_FP = "Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical"
 XH3_FP = "Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical"
 XH2_MPN, XH3_MPN = "B2B-XH-A(LF)(SN)", "B3B-XH-A(LF)(SN)"
 DIODE_FP = "Diode_SMD:D_SOD-123"
-KEY_LEFT_X, KEY_LEFT_Y0, KEY_LEFT_PITCH = 5.0, 13.0, 8.5      # header pin 1, rot 90 (pins run up)
-KEY_BOT_Y, KEY_BOT_X0, KEY_BOT_PITCH = 95.0, 16.0, 8.7        # header pin 1, rot 0 (pins run right)
-KEY_POS = {}   # name -> (x, y) of the header body centre, for silkscreen
+KEY_X0, KEY_PITCH, KEY_Y = 16.0, 7.0, 69.5     # header pin 1, rot 90 (pins run up), pin 2 at KEY_Y - 2.5
+KEY_DIODE_Y, KEY_LABEL_Y = 61.5, 73.2          # diode above the header, name below it
+KEY_POS = {}   # name -> x of the header, for silkscreen
 dn = 1
 for i, (name, mat) in enumerate(KEYS):
-    if i < 10:
-        hx, hy, hrot = KEY_LEFT_X, KEY_LEFT_Y0 + i * KEY_LEFT_PITCH, 90
-        dx, dy, drot = 12.0, hy - 1.25, 90          # diode parallel to the header, like the bottom row
-        KEY_POS[name] = (hx, hy - 1.25)
-    else:
-        hx, hy, hrot = KEY_BOT_X0 + (i - 10) * KEY_BOT_PITCH, KEY_BOT_Y, 0
-        dx, dy, drot = hx + 1.25, 89.5, 0
-        KEY_POS[name] = (hx + 1.25, hy)
+    hx, hy, hrot = KEY_X0 + i * KEY_PITCH, KEY_Y, 90
+    dx, dy, drot = hx, KEY_DIODE_Y, 90
+    KEY_POS[name] = hx
     row, col_i = divmod(i, 7)
     sx, sy = 78 + col_i * 20, 8 + row * 8
     if mat is None:
@@ -185,12 +191,12 @@ for i, (name, mat) in enumerate(KEYS):
 # Pot 4 is on A9 (not A3) because A3 is SPI1 MOSI for the display header.
 POTS = [("J10", "POT_VOL", "VOL"), ("J11", "POT_2", "POT2"), ("J12", "POT_3", "POT3"),
         ("J13", "POT_4", "POT4"), ("J14", "POT_5", "POT5")]
-POT_X, POT_Y0, POT_PITCH = 95.5, 40.0, 11.5
+POT_X, POT_Y0, POT_PITCH = 152.0, 8.5, 8.5      # stacked up the right edge, pins running right
 for i, (ref, net, label) in enumerate(POTS):
     add(ref, "Connector_Generic:Conn_01x03", "Pot %s (10k lin, panel) JST-XH" % label, XH3_FP,
-        {"1": "+3.3VA", "2": net, "3": "GND"}, sch=(78 + i * 12, 36, 0), pcb=(POT_X, POT_Y0 + i * POT_PITCH, 90), mpn=XH3_MPN)
+        {"1": "+3.3VA", "2": net, "3": "GND"}, sch=(78 + i * 12, 36, 0), pcb=(POT_X, POT_Y0 + i * POT_PITCH, 0), mpn=XH3_MPN)
 
-# --- USB-C: MIDI data on D29/D30 (libDaisy EXTERNAL) and the only power input ------
+# --- USB-C: MIDI data on D29/D30 (libDaisy EXTERNAL) and the charger's input ---------
 add("J1", "Connector:USB_C_Receptacle_USB2.0_16P", "USB-C (MIDI + 5V power)",
     "Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal",
     {"S1": "GND", "SH": "GND", "A1": "GND", "A12": "GND", "B1": "GND", "B12": "GND",   # shield pad is S1 (KiCad 9 lib) or SH (KiCad 10)
@@ -209,9 +215,11 @@ R_SMD = "Resistor_SMD:R_0805_2012Metric"
 C_SMD = "Capacitor_SMD:C_0805_2012Metric"
 add("R1", "Device:R", "5k1", R_SMD, {"1": "CC1", "2": "GND"}, sch=(40, 96, 0), pcb=(24.0, 18.0, 0), lcsc="C27834")
 add("R2", "Device:R", "5k1", R_SMD, {"1": "CC2", "2": "GND"}, sch=(46, 96, 0), pcb=(24.0, 21.0, 0), lcsc="C27834")
-# SMD PTC: the v0.3 radial MF-R250 collided with the Seed socket
+# SMD PTC on the USB input (the v0.3 radial MF-R250 collided with the Seed socket).  VUSB is
+# the charger's input; the +5V rail is made by the boost converter further down.
 add("F1", "Device:Polyfuse", "MF-MSMF250/16X-2 2.5A PTC", "Fuse:Fuse_1812_4532Metric",
-    {"1": "VBUS", "2": "+5V"}, sch=(60, 100, 0), pcb=(23.0, 11.5, 90), lcsc="C210838", mpn="MF-MSMF250/16X-2")
+    {"1": "VBUS", "2": "VUSB"}, sch=(60, 100, 0), pcb=(23.0, 11.5, 90), lcsc="C210838", mpn="MF-MSMF250/16X-2")
+# Bulk on the +5V rail next to the Seed VIN pin, for the amp's peaks
 add("C1", "Device:C_Polarized", "470u 10V", "Capacitor_THT:CP_Radial_D8.0mm_P3.50mm",
     {"1": "+5V", "2": "GND"}, sch=(90, 100, 0), pcb=(54.0, 12.0, 0), mpn="EEU-FR1A471")
 add("C6", "Device:C", "100n", C_SMD, {"1": "+5V", "2": "GND"}, sch=(98, 100, 0), pcb=(50.0, 5.0, 0), lcsc="C49678")
@@ -233,11 +241,11 @@ add("C19", "Device:C", "1u", C_SMD, {"1": "GND", "2": "AMP_INRN"}, sch=(110, 106
 add("C17", "Device:C", "1u", C_SMD, {"1": "AUDIO_R", "2": "AMP_INR"}, sch=(104, 106, 90), pcb=(53.0, U3Y + 4.0, 0), lcsc="C28323")
 add("C14", "Device:C", "10u", C_SMD, {"1": "+5V", "2": "GND"}, sch=(134, 94, 90), pcb=(68.0, U3Y - 0.4, 0), lcsc="C15850")
 add("C15", "Device:C", "100n", C_SMD, {"1": "+5V", "2": "GND"}, sch=(140, 94, 90), pcb=(68.0, U3Y + 2.0, 0), lcsc="C49678")
-add("R13", "Device:R", "100k", R_SMD, {"1": "AMP_GAIN", "2": "+5V"}, sch=(134, 106, 90), pcb=(60.0, U3Y + 8.0, 0), lcsc="C149504")
-add("R14", "Device:R", "100k", R_SMD, {"1": "AMP_SD", "2": "+5V"}, sch=(140, 106, 90), pcb=(66.0, U3Y + 8.0, 0), lcsc="C149504")
+add("R13", "Device:R", "100k", R_SMD, {"1": "AMP_GAIN", "2": "+5V"}, sch=(134, 106, 90), pcb=(57.0, U3Y + 6.0, 0), lcsc="C149504")
+add("R14", "Device:R", "100k", R_SMD, {"1": "AMP_SD", "2": "+5V"}, sch=(140, 106, 90), pcb=(63.0, U3Y + 6.0, 0), lcsc="C149504")
 add("JP1", "Jumper:SolderJumper_3_Open", "GAIN: 1-2 = 18dB, open = R13, 2-3 = 12dB",
     "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm",
-    {"1": "GND", "2": "AMP_GAIN", "3": "+5V"}, sch=(128, 112, 0), pcb=(60.0, U3Y + 11.5, 0))
+    {"1": "GND", "2": "AMP_GAIN", "3": "+5V"}, sch=(128, 112, 0), pcb=(54.5, 59.5, 0))   # between two key diodes
 # Speaker outputs -> 0805 ferrite bead + 220p EMI filter (MAX98306 datasheet) -> JST-PH plugs.
 # Bead rows top->bottom follow the hand-routed fan-out below: LN, LP, RP, RN.
 FB_FP = "Inductor_SMD:L_0805_2012Metric"
@@ -249,9 +257,9 @@ for i, sig in enumerate(["LN", "LP", "RP", "RN"]):
         {"1": "SPKF_" + sig, "2": "GND"}, sch=(150 + i * 8, 106, 0), pcb=(78.0, FB_ROWS[sig], 0), lcsc="C53172")
 JST_FP = "Connector_JST:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical"
 add("J5", "Connector_Generic:Conn_01x02", "Speaker L (JST-PH)", JST_FP,
-    {"1": "SPKF_LP", "2": "SPKF_LN"}, sch=(190, 96, 0), pcb=(85.0, U3Y - 2.0, 0), mpn="B2B-PH-K-S(LF)(SN)")
+    {"1": "SPKF_LP", "2": "SPKF_LN"}, sch=(190, 96, 0), pcb=(85.0, U3Y - 4.0, 0), mpn="B2B-PH-K-S(LF)(SN)")
 add("J6", "Connector_Generic:Conn_01x02", "Speaker R (JST-PH)", JST_FP,
-    {"1": "SPKF_RP", "2": "SPKF_RN"}, sch=(190, 106, 0), pcb=(85.0, U3Y + 6.0, 0), mpn="B2B-PH-K-S(LF)(SN)")
+    {"1": "SPKF_RP", "2": "SPKF_RN"}, sch=(190, 106, 0), pcb=(85.0, U3Y + 4.0, 0), mpn="B2B-PH-K-S(LF)(SN)")
 
 # --- Headphone jack on the top edge, plug detect mutes the speaker amp ----------------------
 # Tip/ring from U2.  TN is shorted to T while nothing is plugged in, so HP_DET sits at ~0 V
@@ -306,11 +314,10 @@ add("C13", "Device:C", "10u", C_SMD, {"1": "+3V3", "2": "GND"}, sch=(178, 122, 9
 add("R12", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "HP_MUTE"}, sch=(184, 122, 90), pcb=(66.0, 36.0, 0), lcsc="C149504")
 
 # --- Expansion header (spare Seed pins) -------------------------------------
-add("J8", "Connector_Generic:Conn_01x10", "Expansion",
-    "Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Vertical",
-    {"1": "HP_MUTE", "2": "EXP_A5", "3": "EXP_A6", "4": "EXP_A10", "5": "EXP_A11",
-     "6": "HP_DET", "7": "MUTE", "8": "+3V3", "9": "+5V", "10": "GND"},
-    sch=(200, 40, 0), pcb=(36.0, 66.0, 90), mpn="PPTC101LFBN-RC")
+add("J8", "Connector_Generic:Conn_01x08", "Expansion",
+    "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical",
+    {"1": "HP_MUTE", "2": "EXP_A6", "3": "HP_DET", "4": "MUTE", "5": "VSYS", "6": "+3V3", "7": "+5V", "8": "GND"},
+    sch=(200, 40, 0), pcb=(95.0, 10.0, 90), mpn="PPTC081LFBN-RC")
 
 # --- Display header: hardware SPI1 + D/C + reset -------------------------------------------
 # SSD1306/SH1106 OLED (4-wire SPI) or a Sharp memory LCD (CLK = SCK, DI = MOSI, CS = NSS,
@@ -318,7 +325,7 @@ add("J8", "Connector_Generic:Conn_01x10", "Expansion",
 add("J9", "Connector_Generic:Conn_01x08", "Display (SPI1)",
     "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical",
     {"1": "GND", "2": "+3V3", "3": "+5V", "4": "SPI_SCK", "5": "SPI_MOSI", "6": "SPI_NSS", "7": "DISP_DC", "8": "DISP_RST"},
-    sch=(200, 62, 0), pcb=(68.0, 66.0, 90), mpn="PPTC081LFBN-RC")
+    sch=(200, 62, 0), pcb=(118.0, 10.0, 90), mpn="PPTC081LFBN-RC")
 
 # --- STEMMA QT / Qwiic: I2C1 for the seesaw encoder breakouts ------------------------------
 # JST SH 4-pin, Adafruit/SparkFun pinout: 1 GND, 2 3V3, 3 SDA, 4 SCL.  The breakouts carry
@@ -326,12 +333,69 @@ add("J9", "Connector_Generic:Conn_01x08", "Display (SPI1)",
 add("J15", "Connector_Generic:Conn_01x04", "STEMMA QT (I2C1)",
     "Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal",
     {"1": "GND", "2": "+3V3", "3": "I2C_SDA", "4": "I2C_SCL"},
-    sch=(200, 80, 0), pcb=(96.4, 22.0, 90), lcsc="C160404", mpn="SM04B-SRSS-TB(LF)(SN)")
-add("R16", "Device:R", "4k7 (DNP)", R_SMD, {"1": "+3V3", "2": "I2C_SDA"}, sch=(210, 88, 90), pcb=(89.5, 19.0, 0), dnp=True)
-add("R17", "Device:R", "4k7 (DNP)", R_SMD, {"1": "+3V3", "2": "I2C_SCL"}, sch=(216, 88, 90), pcb=(89.5, 25.0, 0), dnp=True)
+    sch=(200, 80, 0), pcb=(156.4, 51.0, 90), lcsc="C160404", mpn="SM04B-SRSS-TB(LF)(SN)")
+add("R16", "Device:R", "4k7 (DNP)", R_SMD, {"1": "+3V3", "2": "I2C_SDA"}, sch=(210, 88, 90), pcb=(149.5, 48.0, 0), dnp=True)
+add("R17", "Device:R", "4k7 (DNP)", R_SMD, {"1": "+3V3", "2": "I2C_SCL"}, sch=(216, 88, 90), pcb=(149.5, 53.0, 0), dnp=True)
+
+# --- Battery: BQ24074 charger with power path, TPS61023 5 V boost --------------------------
+# VBUS -> F1 -> VUSB -> U5 IN.  U5 OUT (VSYS) is 4.4 V regulated while USB is present and the
+# battery otherwise, with the battery supplementing USB on peaks (DPPM).  VSYS feeds the boost,
+# which makes the +5V rail for the Seed VIN and the speaker amp; so the boost carries the whole
+# load on USB too, which its 3.7 A switch handles at that easy ratio.
+# Charger settings: EN2 = high, EN1 = low -> input limit from R19 (1.1k: 1.5 A, VIN-DPM backs it
+# off on a weak port); R18 1.8k -> 0.5 A fast charge (0.25 C for a 2000 mAh cell, and only
+# 0.65 W in the QFN); TMR and ITERM open -> default 30 min / 5 h timers and 10 % termination;
+# CE low -> charging enabled; TS 10k to VSS (no pack thermistor).  ~CHG and ~PGOOD are open
+# drain, pulled up to 3V3, read by A5 / A11.  Use a protected cell (Adafruit/SparkFun LiPos).
+add("J17", "Connector_Generic:Conn_01x02", "Battery 1S LiPo (JST-PH, 1 = +)", JST_FP,
+    {"1": "VBAT", "2": "GND"}, sch=(16, 152, 0), pcb=(100.0, 22.0, 0), mpn="B2B-PH-K-S(LF)(SN)")
+add("U5", "Battery_Management:BQ24074RGT", "BQ24074RGTR",
+    "Package_DFN_QFN:VQFN-16-1EP_3x3mm_P0.5mm_EP1.6x1.6mm_ThermalVias",
+    {"1": "TS", "2": "VBAT", "3": "VBAT", "4": "GND", "5": "VSYS", "6": "GND", "7": "USB_PGOOD", "8": "GND",
+     "9": "CHG_STAT", "10": "VSYS", "11": "VSYS", "12": "ILIM", "13": "VUSB", "14": None, "15": None, "16": "ISET", "17": "GND"},
+    sch=(44, 154, 0), pcb=(113.0, 24.0, 0), lcsc="C54313", mpn="BQ24074RGTR",
+    desc="TI BQ24074 1.5 A single-cell Li-ion charger with power path, VQFN-16 3x3")
+add("C20", "Device:C", "1u", C_SMD, {"1": "VUSB", "2": "GND"}, sch=(28, 148, 90), pcb=(107.0, 20.0, 90), lcsc="C28323")
+add("C21", "Device:C", "10u", C_SMD, {"1": "VSYS", "2": "GND"}, sch=(60, 148, 90), pcb=(119.0, 20.0, 90), lcsc="C15850")
+add("C22", "Device:C", "10u", C_SMD, {"1": "VBAT", "2": "GND"}, sch=(28, 158, 90), pcb=(107.0, 28.0, 90), lcsc="C15850")
+add("R18", "Device:R", "1k8 (ISET 0.5A)", R_SMD, {"1": "ISET", "2": "GND"}, sch=(60, 158, 90), pcb=(119.0, 28.0, 90), mpn="0805 1% 1.8k")
+add("R19", "Device:R", "1k1 (ILIM 1.5A)", R_SMD, {"1": "ILIM", "2": "GND"}, sch=(66, 158, 90), pcb=(122.5, 28.0, 90), mpn="0805 1% 1.1k")
+add("R20", "Device:R", "10k", R_SMD, {"1": "TS", "2": "GND"}, sch=(34, 158, 90), pcb=(107.5, 32.0, 90), lcsc="C17414")
+add("R21", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "USB_PGOOD"}, sch=(72, 150, 90), pcb=(111.0, 32.0, 90), lcsc="C149504")
+add("R22", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "CHG_STAT"}, sch=(78, 150, 90), pcb=(114.5, 32.0, 90), lcsc="C149504")
+# Battery voltage to the ADC: VBAT/2, 0 to 2.1 V, 21 uA drain
+add("R23", "Device:R", "100k", R_SMD, {"1": "VBAT", "2": "VBAT_SENSE"}, sch=(84, 150, 90), pcb=(118.0, 32.0, 90), lcsc="C149504")
+add("R24", "Device:R", "100k", R_SMD, {"1": "VBAT_SENSE", "2": "GND"}, sch=(90, 150, 90), pcb=(121.5, 32.0, 90), lcsc="C149504")
+add("C26", "Device:C", "100n", C_SMD, {"1": "VBAT_SENSE", "2": "GND"}, sch=(96, 150, 90), pcb=(125.0, 32.0, 90), lcsc="C49678")
+# Power switch: a panel SPST on J16 pulls the boost's EN up to VSYS (through R28); R27 holds it
+# off otherwise.  JP2 bridges the switch for a bench board with no panel switch.  The charger
+# keeps charging with the switch off, and the boost's EN pin draws nothing, so any small switch
+# will do.
+add("J16", "Connector_Generic:Conn_01x02", "Power switch (panel SPST) JST-XH", XH2_FP,
+    {"1": "SW_HI", "2": "BOOST_EN"}, sch=(16, 160, 0), pcb=(100.0, 32.0, 0), mpn=XH2_MPN)
+add("JP2", "Jumper:SolderJumper_2_Open", "always on (bridges the power switch)",
+    "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
+    {"1": "SW_HI", "2": "BOOST_EN"}, sch=(24, 164, 0), pcb=(100.0, 38.0, 0))
+add("R28", "Device:R", "10k", R_SMD, {"1": "VSYS", "2": "SW_HI"}, sch=(30, 164, 90), pcb=(124.5, 36.5, 0), lcsc="C17414")
+add("R27", "Device:R", "100k", R_SMD, {"1": "BOOST_EN", "2": "GND"}, sch=(36, 164, 90), pcb=(124.5, 39.0, 0), lcsc="C149504")
+# Boost: TPS61023, 1 uH, 10 uF in, 2 x 22 uF + C1 out, 750k/100k -> 5.1 V (VREF 0.6 V).  About
+# 1.5 A continuous at 5 V from a 3.3 V cell, more from USB's 4.4 V.  Inductor per TI's table;
+# XGL4030-102MEC (LCSC C6336766) is the stocked equivalent.
+add("U6", "SynthMachine:TPS61023", "TPS61023DRLR", "Package_TO_SOT_SMD:SOT-563",
+    {"1": "BOOST_FB", "2": "BOOST_EN", "3": "VSYS", "4": "GND", "5": "BOOST_SW", "6": "+5V"},
+    sch=(110, 156, 0), pcb=(132.0, 40.0, 0), lcsc="C919459", mpn="TPS61023DRLR",
+    desc="TI TPS61023 3.7 A boost converter, SOT-563")
+add("L1", "Device:L", "1u 4x4 (XEL4030-102ME)", "Inductor_SMD:L_Coilcraft_XxL4030",
+    {"1": "VSYS", "2": "BOOST_SW"}, sch=(100, 152, 0), pcb=(132.5, 46.5, 0), mpn="XEL4030-102MEC")
+add("C23", "Device:C", "10u", C_SMD, {"1": "VSYS", "2": "GND"}, sch=(100, 160, 90), pcb=(128.2, 44.5, 270), lcsc="C15850")   # rot 270: pad 1 (VSYS) on top
+C_1210 = "Capacitor_SMD:C_1210_3225Metric"
+add("C24", "Device:C", "22u 25V", C_1210, {"1": "+5V", "2": "GND"}, sch=(122, 150, 90), pcb=(137.5, 39.5, 270), lcsc="C52306", mpn="CL32A226KAJNNNE")
+add("C25", "Device:C", "22u 25V", C_1210, {"1": "+5V", "2": "GND"}, sch=(128, 150, 90), pcb=(137.5, 44.5, 270), lcsc="C52306", mpn="CL32A226KAJNNNE")
+add("R25", "Device:R", "750k (FB, 5.1V)", R_SMD, {"1": "+5V", "2": "BOOST_FB"}, sch=(122, 160, 90), pcb=(128.0, 39.0, 0), mpn="0805 1% 750k")
+add("R26", "Device:R", "100k", R_SMD, {"1": "BOOST_FB", "2": "GND"}, sch=(128, 160, 90), pcb=(128.0, 36.5, 0), lcsc="C149504")
 
 # --- Mounting holes ----------------------------------------------------------
-for i, (hx, hy) in enumerate([(5, 4), (95, 4), (5, 96), (95, 96)]):
+for i, (hx, hy) in enumerate([(5, 4), (143, 4), (5, 70), (155, 70)]):
     add("H%d" % (i + 1), "Mechanical:MountingHole", "M3", "MountingHole:MountingHole_3.2mm_M3", {},
         sch=(200 + i * 8, 120, 0), pcb=(float(hx), float(hy), 0))
 
@@ -345,7 +409,7 @@ PREROUTES = [
     # AUDIO_L threads between the Seed's pad rows (y 46.82 sits between pins 23 and 22) and
     # comes up to C16; AUDIO_R loops under the Seed's lower edge to C17.  No crossings.
     ("AUDIO_L", "F.Cu", [("U1", "18"), (31.5, 46.82), (47.5, 46.82), (47.5, "C16:1"), ("C16", "1")]),
-    ("AUDIO_R", "F.Cu", [("U1", "19"), (28.0, None), (28.0, 54.0), (51.0, 54.0), (51.0, "C17:1"), ("C17", "1")]),
+    ("AUDIO_R", "F.Cu", [("U1", "19"), (28.0, None), (28.0, 52.5), (51.0, 52.5), (51.0, "C17:1"), ("C17", "1")]),
     ("AUDIO_L", "B.Cu", [("U1", "18"), (31.5, 46.82), (47.5, 46.82), (47.5, 19.4), (76.0, 19.4)]),
     ("AUDIO_L", "VIA", (76.0, 19.4)),
     ("AUDIO_L", "F.Cu", [(76.0, 19.4), ("C7", "1")]),
@@ -366,6 +430,21 @@ PREROUTES = [
     ("SPK_RP", "F.Cu", [("U3", "10"), (U3X + 3.6, None), (U3X + 5.4, U3Y + 2.6), (U3X + 5.4, FB_ROWS["RP"]), ("FB3", "1")], 0.2),
     ("SPK_RN", "F.Cu", [("U3", "9"), (U3X + 3.0, None), (U3X + 4.8, U3Y + 3.0), (U3X + 4.8, FB_ROWS["RN"]), ("FB4", "1")], 0.2),
     ("GND", "F.Cu", [("U3", "8"), (None, U3Y + 2.4), (U3X, U3Y + 2.4), (U3X, U3Y + 1.0)], 0.2),   # into the exposed pad
+    # TPS61023 (SOT-563, 0.5 mm pitch): 0.25 mm stubs off the power pins, because the 0.6 mm
+    # Power-class tracks cannot land on 0.3 mm pads.  Pins 1-3 left (FB, EN, VIN), 4-6 right
+    # (GND, SW, VOUT); the router picks the stubs up from their far ends.
+    ("VSYS", "F.Cu", [("U6", "3"), (128.2, None), ("C23", "1")], 0.25),          # VIN -> input cap (top pad)
+    ("VSYS", "F.Cu", [("C23", "1"), (131.3, "C23:1"), ("L1", "1")], 0.4),         # input cap -> inductor (L1 pad 1 x)
+    ("BOOST_SW", "F.Cu", [("U6", "5"), (134.6, None)], 0.25),                    # thin off the 0.35 mm pad
+    ("BOOST_SW", "F.Cu", [(134.6, 40.0), (134.6, 43.6), (133.7, 43.6), ("L1", "2")], 0.4),
+    ("+5V", "F.Cu", [("U6", "6"), (136.0, None), (136.0, "C24:1"), ("C24", "1")], 0.25),   # VOUT -> output cap (top pad)
+    ("GND", "F.Cu", [("U6", "4"), (None, 42.4)], 0.25),
+    ("+5V", "F.Cu", [("C24", "1"), (139.6, "C24:1"), (139.6, "C25:1"), ("C25", "1")], 0.6),   # both output caps, around C24's GND pad
+    ("VSYS", "F.Cu", [("R28", "1"), (122.3, None), (122.3, 40.95), (128.2, 40.95)], 0.4),      # switch pull-up -> boost input, under R27/R25
+    # GND stitching vias in open areas, so the two pours stay one net wherever the
+    # autorouter's GND tracks leave a front-side island
+    *[("GND", "VIA", xy) for xy in ((10.0, 30.0), (10.0, 50.0), (26.5, 62.0), (66.0, 14.0), (91.0, 30.0),
+                                    (100.0, 47.0), (116.0, 44.0), (110.0, 50.0), (148.0, 64.0))],
 ]
 PREROUTE_WIDTH = 0.3
 
@@ -503,7 +582,15 @@ MAX98306_SYMBOL = build_box_symbol(
     "MAX98306", "Package_DFN_QFN:TDFN-14-1EP_3x3mm_P0.4mm_EP1.78x2.35mm_ThermalVias",
     "Analog Devices MAX98306 stereo 3.7W class-D amplifier, TDFN-14 EP",
     "https://www.analog.com/media/en/technical-documentation/data-sheets/MAX98306.pdf")
-PROJECT_SYMBOLS = {"DaisySeed": DAISY_SEED_SYMBOL, "TPA6138A2": TPA6138A2_SYMBOL, "MAX98306": MAX98306_SYMBOL}
+TPS61023_SYMBOL = build_box_symbol(
+    "TPS61023",
+    [("3", "VIN", "power_in"), ("2", "EN", "input"), ("1", "FB", "input")],
+    [("6", "VOUT", "power_out"), ("5", "SW", "passive"), ("4", "GND", "power_in")],
+    "TPS61023", "Package_TO_SOT_SMD:SOT-563",
+    "TI TPS61023 3.7 A valley-current boost converter, 0.5 V start-up, SOT-563",
+    "https://www.ti.com/lit/ds/symlink/tps61023.pdf")
+PROJECT_SYMBOLS = {"DaisySeed": DAISY_SEED_SYMBOL, "TPA6138A2": TPA6138A2_SYMBOL, "MAX98306": MAX98306_SYMBOL,
+                   "TPS61023": TPS61023_SYMBOL}
 
 # ---------------------------------------------------------------------------
 # Footprints (project library)
@@ -721,7 +808,8 @@ def write_schematic():
         out.append('  (wire (pts (xy %s %s) (xy %s %s)) (stroke (width 0) (type default)) (uuid "%s"))' % (fmt(x1), fmt(y1), fmt(x2), fmt(y2), U()))
 
     # Power flags + a PWR_FLAG-driven stub for the rails no power_out pin drives.
-    for net, x, y in (("+5V", 100 * G, 92 * G), ("GND", 106 * G, 92 * G), ("VBUS", 118 * G, 92 * G)):
+    # (+5V is driven by U6's VOUT, a power output, so it needs no flag)
+    for net, x, y in (("GND", 106 * G, 92 * G), ("VBUS", 118 * G, 92 * G), ("VUSB", 126 * G, 92 * G)):
         if net in POWER_NETS:
             place_power(net, x, y)
         else:
@@ -732,12 +820,14 @@ def write_schematic():
         ("KEY MATRIX: columns D4-D9 driven low one at a time, rows D1-D3 read with pull-ups (see scanButtonMatrix). Diode anode to switch, cathode to column.", 78, 3),
         ("C4 is a direct key on D10 to GND (firmware uses internal pull-up).  BTN1-6 = top-row buttons on the 6 unused matrix slots (NOTE_MAPPING -1 entries).", 78, 5),
         ("POTS: panel-mount 10k linear pots on JST-XH 3-pin: 1 = +3V3A, 2 = wiper, 3 = AGND. VOL = A0, POT2 = A1, POT3 = A2, POT4 = A9, POT5 = A4.  KEYS: panel buttons on JST-XH 2-pin, one per key.", 78, 32),
-        ("POWER: USB-C only. VBUS -> 2.5A SMD polyfuse -> +5V rail for Seed VIN and the amp. 5.1k CC pull-downs advertise a 1.5A sink. U4 = ESD on D+/D-.", 20, 88),
+        ("POWER: VBUS -> F1 2.5A PTC -> VUSB -> U5 charger (power path) -> VSYS -> U6 boost -> +5V for Seed VIN and the amp. 5.1k CC pull-downs advertise a 1.5A sink. U4 = ESD on D+/D-.", 20, 88),
         ("USB-C data to D29/D30 = Daisy 'external' USB. In firmware use MidiUsbTransport::Config::EXTERNAL.", 20, 90),
         ("AMP: MAX98306 on board, single-ended inputs (1u caps, - inputs to GND). Gain: R13 100k to PVDD = 9 dB, JP1 straps GAIN to GND (18 dB) or PVDD (12 dB). Outputs -> ferrite + 220p EMI filter -> JST-PH.", 120, 90),
         ("Outputs are bridge-tied: NO series caps on the speakers, never join L- and R-.", 120, 92),
         ("HEADPHONES: TPA6138A2 (gain -1, ground-centred output, no output caps) drives the jack. TN contact = plug detect (HP_DET, reaches 3V3: Q1 is a MOSFET). Q1 pulls the speaker amp SD low when plugged. D13 reads HP_DET, D14 = headphone mute (pulled up).", 20, 118),
         ("MUTE: D0 -> R6 -> Q2 (2N7002) -> AMP_SD, pulled up by R15 so the speakers are muted until firmware drives D0 low. Q1 and Q2 drains are a wired-OR on AMP_SD.", 20, 120),
+        ("BATTERY: BQ24074, EN2=1/EN1=0 -> 1.5A input limit (R19), 0.5A charge (R18), default timers, 10% termination, TS = 10k. VSYS = 4.4V on USB, else VBAT. ~CHG -> A5, ~PGOOD -> A11 (100k pull-ups). VBAT/2 -> A10.", 16, 144),
+        ("BOOST: TPS61023 5.1V (750k/100k), 1uH, 10uF in, 2x22uF out + C1. EN from the panel switch on J16 (or JP2 bridged) via R28, R27 pull-down = off. Use a protected LiPo cell; J17 pin 1 = +.", 16, 146),
         ("EXPANSION: spare Seed GPIO/ADC + 3V3/5V/GND.  DISPLAY: SPI1 (A7 SCK, A3 MOSI, A8 NSS) + D26 D/C + D27 RST.  STEMMA QT: I2C1 (D11 SCL, D12 SDA) for seesaw encoders.", 78, 30),
     ]
     for txt, x, y in notes:
@@ -777,7 +867,7 @@ def write_pcb(root_uuid):
             raise RuntimeError("footprint not found: " + p.footprint)
         fp.SetReference(p.ref)
         fp.SetValue(p.value)
-        if re.match(r"^(H\d+|D\d+|K\d+|J(1|5|6|7|8|9|10|11|12|13|14|15))$", p.ref):
+        if re.match(r"^(H\d+|D\d+|K\d+|J(1|5|6|7|8|9|10|11|12|13|14|15|16|17))$", p.ref):
             fp.Reference().SetVisible(False)     # functional silkscreen labels are added separately
         if getattr(p, "dnp", False):
             try:
@@ -844,24 +934,25 @@ def write_pcb(root_uuid):
                 t.SetTextAngle(pcbnew.EDA_ANGLE(angle, pcbnew.DEGREES_T))
         board.Add(t)
 
-    text("synthMachine carrier v0.4", 50, 75, 2.0)
-    for name, (kx_, ky_) in KEY_POS.items():
-        if kx_ < 10:
-            text(name, 10.0, ky_, 1.0, angle=90)   # left column: between header and diode, reads bottom-up (baseline at the edge)
-        else:
-            text(name, kx_, 87.0, 1.0)          # bottom row: label just above the diode
+    text("synthMachine carrier v0.4", 118, 53.0, 1.5)
+    for name, kx_ in KEY_POS.items():
+        text(name, kx_, KEY_LABEL_Y, 0.8)          # key name under its header, along the board edge
     for i, (ref, netname, label) in enumerate(POTS):
-        text(label, 91.3, POT_Y0 + i * POT_PITCH - 2.5, 0.8, angle=270)   # reads top-down, baseline at the right edge
+        text(label, 146.0, POT_Y0 + i * POT_PITCH, 0.8, angle=90)   # left of each pot header
     text("USB-C", 16, 9.8, 1.0)
+    text("BAT 1=+", 100, 17.5, 0.8)
+    text("PWR SW", 100, 27.2, 0.8)
+    text("CHG", 113, 17.0, 0.8)
+    text("BOOST", 132.5, 36.0, 0.8)
     text("HP", 78, 21.0, 1.0)
-    text("SPK L", 85, U3Y - 6.0, 0.9)
-    text("SPK R", 85, U3Y + 10.0, 0.9)
+    text("SPK L", 85, U3Y - 8.0, 0.9)
+    text("SPK R", 85, U3Y + 8.0, 0.9)
     text("AMP", U3X, U3Y - 5.0, 0.9)
-    text("GAIN", U3X + 4.5, U3Y + 11.5, 0.8)
+    text("GAIN", 54.5, 61.8, 0.8)
     text("HP AMP", 83, 25.0, 0.9)
-    text("EXP", 31, 66, 1.0)
-    text("DISP", 63, 66, 1.0)
-    text("I2C", 92.5, 15.5, 0.9)
+    text("EXP", 95, 7.2, 0.9)
+    text("DISP", 118, 7.2, 0.9)
+    text("I2C", 149.5, 57.5, 0.9)
     text("ESD", 17.5, 17.0, 0.8)
 
     # GND pours (unfilled; press B in pcbnew)
@@ -890,10 +981,10 @@ def write_pcb(root_uuid):
         dflt = ns.GetDefaultNetclass()
         dflt.SetClearance(mm(0.15)); dflt.SetTrackWidth(mm(0.2)); dflt.SetViaDiameter(mm(0.7)); dflt.SetViaDrill(mm(0.35))
         pwr = pcbnew.NETCLASS("Power")
-        pwr.SetClearance(mm(0.2)); pwr.SetTrackWidth(mm(0.6)); pwr.SetViaDiameter(mm(0.9)); pwr.SetViaDrill(mm(0.5))
+        pwr.SetClearance(mm(0.15)); pwr.SetTrackWidth(mm(0.6)); pwr.SetViaDiameter(mm(0.9)); pwr.SetViaDrill(mm(0.5))   # 0.15: the boost's SOT-563 pads are 0.2 apart
         ns.SetNetclass("Power", pwr)
         usb = pcbnew.NETCLASS("USB_Power")   # narrower so it can escape the USB-C's 0.5 mm pitch pads
-        usb.SetClearance(mm(0.2)); usb.SetTrackWidth(mm(0.4)); usb.SetViaDiameter(mm(0.8)); usb.SetViaDrill(mm(0.4))
+        usb.SetClearance(mm(0.15)); usb.SetTrackWidth(mm(0.4)); usb.SetViaDiameter(mm(0.8)); usb.SetViaDrill(mm(0.4))
         ns.SetNetclass("USB_Power", usb)
         spk = pcbnew.NETCLASS("Speaker")     # amp pins -> ferrite beads: pad-limited, short
         spk.SetClearance(mm(0.15)); spk.SetTrackWidth(mm(0.3)); spk.SetViaDiameter(mm(0.8)); spk.SetViaDrill(mm(0.4))
@@ -903,6 +994,8 @@ def write_pcb(root_uuid):
         # +3V3 / +3.3VA carry tens of mA at most and have to reach TSSOP pads: default class
         for pat in ("+5V", "+5V_SW", "SPKF_*"):
             ns.SetNetclassPatternAssignment(pat, "Power")
+        for pat in ("VSYS", "VBAT", "VUSB", "BOOST_SW"):
+            ns.SetNetclassPatternAssignment(pat, "USB_Power")   # 0.4 mm: the battery rails
         ns.SetNetclassPatternAssignment("VBUS", "USB_Power")
         print("netclasses set")
     except Exception as e:

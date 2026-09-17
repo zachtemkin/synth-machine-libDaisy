@@ -63,13 +63,11 @@ with open(os.path.join(out, "pcbway_bom.csv"), "w", newline="") as f:
     w.writerow(["Item", "Designator", "Qty", "Manufacturer Part Number", "LCSC Part #", "Value", "Package", "Type"])
     n = 0
     for r in rows:
-        if not (r.get("MPN") or r.get("LCSC")):
-            continue
         n += 1
         pkg = r["Footprint"].split(":")[-1]
         kind = "THT" if any(k in pkg for k in ("THT", "PinHeader", "JST_XH", "JST_PH", "Radial", "Jack", "DaisySeed")) else "SMD"
         w.writerow([n, r["Refs"], r["Qty"], r.get("MPN", ""), r.get("LCSC", ""), r["Value"], pkg, kind])
-wanted = {ref.strip() for r in rows if (r.get("MPN") or r.get("LCSC")) for ref in r["Refs"].replace("-", ",").split(",")}
+wanted = {ref.strip() for r in rows for ref in r["Refs"].replace("-", ",").split(",")}
 pos = list(csv.DictReader(open(os.path.join(out, "_all_pos.csv"))))
 with open(os.path.join(out, "pcbway_cpl.csv"), "w", newline="") as f:
     w = csv.writer(f); w.writerow(["Designator", "Mid X", "Mid Y", "Layer", "Rotation", "Package"])

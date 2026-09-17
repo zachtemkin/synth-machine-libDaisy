@@ -8,7 +8,7 @@ details and the pin map.
 | Directory | Status |
 |---|---|
 | `v0.3/` | Fabricated September 2026. The bench unit. Needs the HP_DET jumper and `HP_DET=adc`; see its README. |
-| `v0.4/` | Next revision, generated and routed, not yet ordered. MOSFET mute and plug detect, STEMMA QT for encoders, SPI display header, USB ESD, SMD fuse, PCBWay BOM. |
+| `v0.4/` | Next revision, generated and routed, not yet ordered. 160 x 74 mm with the 19 key headers in one row, onboard LiPo charger and 5 V boost with a panel power switch, MOSFET mute and plug detect, STEMMA QT for encoders, SPI display header, USB ESD, SMD fuse, PCBWay BOM. |
 
 `NEXT_REVISION.md` is the running list of changes across revisions: what
 v0.4 fixed and what is still open. `enclosure-concepts/` holds enclosure
