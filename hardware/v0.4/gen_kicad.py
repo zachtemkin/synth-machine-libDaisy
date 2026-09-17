@@ -190,10 +190,10 @@ for i, (name, mat) in enumerate(KEYS):
 # The four bank pots of v0.3 are replaced by I2C rotary encoders on J15 (STEMMA QT).  Their
 # ADC pins (A1, A2, A4, A9) go to the expansion header instead.
 POTS = [("J10", "POT_VOL", "VOL")]
-POT_X, POT_Y0, POT_PITCH = 152.0, 10.5, 8.5
+POT_X, POT_Y0, POT_PITCH = 5.5, 16.0, 8.5        # left edge, up by the USB-C, where the pot sits on the panel
 for i, (ref, net, label) in enumerate(POTS):
     add(ref, "Connector_Generic:Conn_01x03", "Pot %s (10k lin, panel) JST-XH" % label, XH3_FP,
-        {"1": "+3.3VA", "2": net, "3": "GND"}, sch=(78 + i * 12, 36, 0), pcb=(POT_X, POT_Y0 + i * POT_PITCH, 0), mpn=XH3_MPN)
+        {"1": "+3.3VA", "2": net, "3": "GND"}, sch=(78 + i * 12, 36, 0), pcb=(POT_X, POT_Y0 + i * POT_PITCH, 90), mpn=XH3_MPN)
 
 # --- USB-C: MIDI data on D29/D30 (libDaisy EXTERNAL) and the charger's input ---------
 add("J1", "Connector:USB_C_Receptacle_USB2.0_16P", "USB-C (MIDI + 5V power)",
@@ -272,7 +272,7 @@ add("J6", "Connector_Generic:Conn_01x02", "Speaker R (JST-PH)", JST_FP,
 add("J7", "Connector_Audio:AudioJack3_SwitchTR", "Headphones 3.5mm (CUI SJ1-3515N)",
     "Connector_Audio:Jack_3.5mm_CUI_SJ1-3515N_Horizontal",
     {"S": "GND", "T": "HP_L", "R": "HP_R", "TN": "HP_DET", "RN": None},
-    sch=(20, 130, 0), pcb=(78.0, 6.1, 270), mpn="SJ1-3515N")   # opening faces the top edge
+    sch=(20, 130, 0), pcb=(78.0, 4.6, 270), mpn="SJ1-3515N")   # opening faces the top edge; nose 1.5 mm proud of it
 add("R3", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "HP_DET"}, sch=(36, 126, 0), pcb=(52.0, 32.0, 0), lcsc="C149504")
 add("R4", "Device:R", "10k", R_SMD, {"1": "HP_L", "2": "GND"}, sch=(42, 126, 0), pcb=(80.0, 36.0, 0), lcsc="C17414")
 add("R5", "Device:R", "10k", R_SMD, {"1": "HP_DET", "2": "Q1_G"}, sch=(52, 126, 0), pcb=(52.0, 27.0, 0), lcsc="C17414")
@@ -331,11 +331,11 @@ add("J9", "Connector_Generic:Conn_01x08", "Display (SPI1)",
 # JST SH 4-pin, Adafruit/SparkFun pinout: 1 GND, 2 3V3, 3 SDA, 4 SCL.  The breakouts carry
 # their own pull-ups; R16/R17 are footprints only (DNP) in case a chain needs stronger ones.
 add("J15", "Connector_Generic:Conn_01x04", "STEMMA QT (I2C1)",
-    "Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal",
+    "Connector_JST:JST_SH_BM04B-SRSS-TB_1x04-1MP_P1.00mm_Vertical",
     {"1": "GND", "2": "+3V3", "3": "I2C_SDA", "4": "I2C_SCL"},
-    sch=(200, 80, 0), pcb=(156.4, 26.0, 90), lcsc="C160404", mpn="SM04B-SRSS-TB(LF)(SN)")
-add("R16", "Device:R", "4k7 (DNP)", R_SMD, {"1": "+3V3", "2": "I2C_SDA"}, sch=(210, 88, 90), pcb=(149.5, 23.0, 0), dnp=True)
-add("R17", "Device:R", "4k7 (DNP)", R_SMD, {"1": "+3V3", "2": "I2C_SCL"}, sch=(216, 88, 90), pcb=(149.5, 28.0, 0), dnp=True)
+    sch=(200, 80, 0), pcb=(150.0, 11.0, 0), lcsc="C160390", mpn="BM04B-SRSS-TB(LF)(SN)")   # top entry, cable leaves upward
+add("R16", "Device:R", "4k7 (DNP)", R_SMD, {"1": "+3V3", "2": "I2C_SDA"}, sch=(210, 88, 90), pcb=(150.0, 16.5, 0), dnp=True)
+add("R17", "Device:R", "4k7 (DNP)", R_SMD, {"1": "+3V3", "2": "I2C_SCL"}, sch=(216, 88, 90), pcb=(150.0, 20.5, 0), dnp=True)
 
 # --- Battery: BQ24074 charger with power path, TPS61023 5 V boost --------------------------
 # VBUS -> F1 -> VUSB -> U5 IN.  U5 OUT (VSYS) is 4.4 V regulated while USB is present and the
@@ -395,7 +395,7 @@ add("R25", "Device:R", "750k (FB, 5.1V)", R_SMD, {"1": "+5V", "2": "BOOST_FB"}, 
 add("R26", "Device:R", "100k", R_SMD, {"1": "BOOST_FB", "2": "GND"}, sch=(128, 160, 90), pcb=(128.0, 36.5, 0), lcsc="C149504")
 
 # --- Mounting holes ----------------------------------------------------------
-for i, (hx, hy) in enumerate([(5, 4), (143, 4), (5, 70), (155, 70)]):
+for i, (hx, hy) in enumerate([(5, 4), (155, 4), (5, 70), (155, 70)]):
     add("H%d" % (i + 1), "Mechanical:MountingHole", "M3", "MountingHole:MountingHole_3.2mm_M3", {},
         sch=(200 + i * 8, 120, 0), pcb=(float(hx), float(hy), 0))
 
@@ -444,6 +444,7 @@ PREROUTES = [
     ("VSYS", "F.Cu", [("U5", "11"), (116.25, None)], 0.2),                                       # charger OUT (0.5 mm pitch) ...
     ("VSYS", "F.Cu", [(116.25, "U5:11"), (116.25, 36.5), (122.3, 36.5)], 0.4),                  # ... down between the resistor rows to R28
     ("VSYS", "F.Cu", [("U5", "5"), (None, 27.5)], 0.2),                                          # EN2 (bottom row) = VSYS: stub down ...
+    ("+5V", "F.Cu", [("R25", "1"), (128.0, None), (128.0, 34.5), (136.0, 34.5), (136.0, 37.9)], 0.25),   # FB divider top -> +5V, threading between R25/R26 pads
     ("VSYS", "F.Cu", [(112.25, 27.5), (116.25, 27.5)], 0.4),                                     # ... and across to the same rail
     # GND stitching vias in open areas, so the two pours stay one net wherever the
     # autorouter's GND tracks leave a front-side island
@@ -942,7 +943,7 @@ def write_pcb(root_uuid):
     for name, kx_ in KEY_POS.items():
         text(name, kx_, KEY_LABEL_Y, 0.8)          # key name under its header, along the board edge
     for i, (ref, netname, label) in enumerate(POTS):
-        text(label, 146.0, POT_Y0 + i * POT_PITCH, 0.8, angle=90)   # left of each pot header
+        text(label, POT_X + 4.7, POT_Y0 + i * POT_PITCH - 1.25, 0.8, angle=90)   # beside the header, reads bottom-up
     text("USB-C", 16, 9.8, 1.0)
     text("BAT 1=+", 100, 17.5, 0.8)
     text("PWR SW", 100, 27.2, 0.8)
@@ -956,7 +957,7 @@ def write_pcb(root_uuid):
     text("HP AMP", 83, 25.0, 0.9)
     text("EXP", 93, 7.2, 0.9)
     text("DISP", 126, 7.2, 0.9)
-    text("I2C ENC", 152.0, 32.5, 0.8)
+    text("I2C ENC", 150.0, 24.0, 0.8)
     text("ESD", 17.5, 17.0, 0.8)
 
     # GND pours (unfilled; press B in pcbnew)

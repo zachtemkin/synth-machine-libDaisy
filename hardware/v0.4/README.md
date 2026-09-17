@@ -15,7 +15,7 @@ still share the top edge.
 | Battery power | J17 JST-PH cell, U5 BQ24074 charger with power path, U6 TPS61023 5 V boost, J16 power-switch header, JP2 always-on jumper | Runs from a single LiPo, charges from the USB-C, and runs from USB while charging. See the power section below. |
 | Plug detect reaches 3V3 | Q1 is a 2N7002 MOSFET | The v0.3 BJT clamped HP_DET at 0.8 V so D13 never saw a plug. No jumper, no `HP_DET=adc`. |
 | Firmware mute on its own transistor | Q2 2N7002, R6 gate, R15 pull-up; MUTE on D0 | Muted at reset, in DFU and after a crash; firmware drives D0 low to run. Wired-OR with Q1. |
-| I2C for encoders | J15 STEMMA QT on I2C1 (D11 SCL, D12 SDA); R16/R17 pull-ups DNP | For the seesaw rotary-encoder breakouts. |
+| I2C for encoders | J15 STEMMA QT (top-entry) on I2C1 (D11 SCL, D12 SDA) at the top right; R16/R17 pull-ups DNP | For the seesaw rotary-encoder breakouts; the cable leaves upward toward the panel. |
 | Display header | J9: GND, 3V3, 5V, SCK (A7), MOSI (A3), NSS (A8), D/C (D26), RST (D27) | Hardware SPI1 for an OLED or a Sharp memory LCD. |
 | Encoders instead of bank pots | J11..J14 removed; only J10 (volume) remains | The four bank controls are seesaw rotary encoders on J15. Their old ADC pins go to the expansion header. |
 | USB ESD, SMD fuse | U4 USBLC6-2SC6, F1 1812 PTC on the USB input | Data lines were unprotected; the radial fuse collided with the Seed. |
@@ -107,11 +107,11 @@ with power-width tracks on its own.
 | Ref | What | Pins |
 |---|---|---|
 | K1..K19 | keys, JST-XH 2-pin, bottom row in panel order | row / diode (any way round) |
-| J10 | volume pot, JST-XH 3-pin, right edge | 3V3A, wiper, GND |
+| J10 | volume pot, JST-XH 3-pin, left edge below the USB-C | 3V3A, wiper, GND |
 | J5, J6 | speakers, JST-PH | + / - |
 | J17 | battery, JST-PH | 1 = +, 2 = GND |
 | J16 | power switch, JST-XH 2-pin | either way round |
-| J15 | STEMMA QT | GND, 3V3, SDA, SCL |
+| J15 | STEMMA QT, top-entry, top right | GND, 3V3, SDA, SCL |
 | J9 | display | GND, 3V3, 5V, SCK, MOSI, NSS, D/C, RST |
 | J8 | expansion | HP_MUTE, A1, A2, A4, A6, A9, HP_DET, MUTE, VSYS, 3V3, 5V, GND |
 
@@ -129,13 +129,16 @@ JLCPCB files are still produced too, for the SMD-only economic route.
 
 1. **J17 polarity** against the cell you will use: pin 1 is + here, and the
    silkscreen says so. A reversed cell destroys the charger.
-2. **J15's opening** faces the right board edge in the render; confirm pin 1
-   (GND) is the pad nearest the top of the board, matching the cable's black
-   wire.
+2. **J15 pin 1** (GND) is the pad nearest the board's right edge; check it
+   against the cable's black wire before plugging in an encoder board.
 3. **Q1/Q2 pinout:** KiCad's `Q_NMOS_GSD` is gate 1, source 2, drain 3, the
    2N7002's SOT-23 order. Check the LCSC part's datasheet agrees.
 4. **U5 thermal pad** has vias to the ground pour; make sure the assembler's
    stencil does not flood it.
 5. **Enclosure:** the outline changed. The top edge still carries all three
    ports at the same spacing from the left edge as v0.3, but the board is
-   60 mm wider and 26 mm shorter, and the mounting holes moved.
+   60 mm wider and 26 mm shorter, and the mounting holes moved. The headphone
+   jack's nose now stands 1.5 mm proud of the edge instead of flush.
+6. **F1 and L1 look unpopulated in the render** only because this KiCad
+   install has no 3D models for the 1812 fuse and the XxL4030 inductor
+   footprints. Both are in the BOM and the placement file.
