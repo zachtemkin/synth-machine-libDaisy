@@ -244,7 +244,7 @@ add("R13", "Device:R", "100k", R_SMD, {"1": "AMP_GAIN", "2": "+5V"}, sch=(134, 1
 add("R14", "Device:R", "100k", R_SMD, {"1": "AMP_SD", "2": "+5V"}, sch=(140, 106, 90), pcb=(63.0, U3Y + 6.0, 0), lcsc="C149504")
 add("JP1", "Jumper:SolderJumper_3_Open", "GAIN: 1-2 = 18dB, open = R13, 2-3 = 12dB",
     "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm",
-    {"1": "GND", "2": "AMP_GAIN", "3": "+5V"}, sch=(128, 112, 0), pcb=(54.5, 59.5, 0))   # between two key diodes
+    {"1": "GND", "2": "AMP_GAIN", "3": "+5V"}, sch=(128, 112, 0), pcb=(66.0, 57.0, 0))   # in the channel above the key diodes
 # Speaker outputs -> 0805 ferrite bead + 220p EMI filter (MAX98306 datasheet) -> JST-PH plugs.
 # Bead rows top->bottom follow the hand-routed fan-out below: LN, LP, RP, RN.
 FB_FP = "Inductor_SMD:L_0805_2012Metric"
@@ -295,7 +295,7 @@ add("U2", "SynthMachine:TPA6138A2", "TPA6138A2PWR", "Package_SO:TSSOP-14_4.4x5mm
      "12": "HP_L", "3": "HP_R", "8": "HP_CP", "7": "HP_CN", "6": "HP_VSS", "4": "GND", "10": "GND"},
     sch=(146, 128, 0), pcb=(83.0, 30.0, 0), lcsc="C183097", mpn="TPA6138A2PWR",
     desc="TI TPA6138A2 40mW DirectPath stereo headphone amplifier, TSSOP-14, 3.3V")
-HP_COL = {"L": 76.0, "R": 71.0}
+HP_COL = {"L": 75.0, "R": 70.0}   # 1 mm left of v0.3: room for the router between R9 and U2
 for ch, y_s in (("L", 122), ("R", 134)):
     col = HP_COL[ch]
     # input caps stand vertical (rot 270 -> pad 1 on top) so the audio vias can drop straight in
@@ -307,8 +307,8 @@ for ch, y_s in (("L", 122), ("R", 134)):
         sch=(124, y_s, 90), pcb=(col, 29.5, 0), lcsc="C17414")
     add("C%d" % (9 if ch == "L" else 10), "Device:C", "47p", C_SMD, {"1": "HP_IN" + ch, "2": "HP_" + ch},
         sch=(132, y_s, 90), pcb=(col, 33.0, 0), lcsc="C14857")
-add("C11", "Device:C", "1u", C_SMD, {"1": "HP_CP", "2": "HP_CN"}, sch=(166, 122, 90), pcb=(71.0, 36.5, 0), lcsc="C28323")
-add("C12", "Device:C", "1u", C_SMD, {"1": "HP_VSS", "2": "GND"}, sch=(172, 122, 90), pcb=(76.0, 36.5, 0), lcsc="C28323")
+add("C11", "Device:C", "1u", C_SMD, {"1": "HP_CP", "2": "HP_CN"}, sch=(166, 122, 90), pcb=(70.0, 36.5, 0), lcsc="C28323")
+add("C12", "Device:C", "1u", C_SMD, {"1": "HP_VSS", "2": "GND"}, sch=(172, 122, 90), pcb=(75.0, 36.5, 0), lcsc="C28323")
 add("C13", "Device:C", "10u", C_SMD, {"1": "+3V3", "2": "GND"}, sch=(178, 122, 90), pcb=(86.0, 36.0, 0), lcsc="C15850")
 add("R12", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "HP_MUTE"}, sch=(184, 122, 90), pcb=(66.0, 36.0, 0), lcsc="C149504")
 
@@ -372,10 +372,10 @@ add("C26", "Device:C", "100n", C_SMD, {"1": "VBAT_SENSE", "2": "GND"}, sch=(96, 
 # keeps charging with the switch off, and the boost's EN pin draws nothing, so any small switch
 # will do.
 add("J16", "Connector_Generic:Conn_01x02", "Power switch (panel SPST) JST-XH", XH2_FP,
-    {"1": "SW_HI", "2": "BOOST_EN"}, sch=(16, 160, 0), pcb=(100.0, 32.0, 0), mpn=XH2_MPN)
+    {"1": "SW_HI", "2": "BOOST_EN"}, sch=(16, 160, 0), pcb=(5.5, 40.0, 90), mpn=XH2_MPN)   # left edge, mid-height, like the panel switch
 add("JP2", "Jumper:SolderJumper_2_Open", "always on (bridges the power switch)",
     "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
-    {"1": "SW_HI", "2": "BOOST_EN"}, sch=(24, 164, 0), pcb=(100.0, 38.0, 0))
+    {"1": "SW_HI", "2": "BOOST_EN"}, sch=(24, 164, 0), pcb=(13.0, 40.0, 90))   # beside J16, room for an iron
 add("R28", "Device:R", "10k", R_SMD, {"1": "VSYS", "2": "SW_HI"}, sch=(30, 164, 90), pcb=(124.5, 36.5, 0), lcsc="C17414")
 add("R27", "Device:R", "100k", R_SMD, {"1": "BOOST_EN", "2": "GND"}, sch=(36, 164, 90), pcb=(124.5, 39.0, 0), lcsc="C149504")
 # Boost: TPS61023, 1 uH, 10 uF in, 2 x 22 uF + C1 out, 750k/100k -> 5.1 V (VREF 0.6 V).  About
@@ -410,12 +410,12 @@ PREROUTES = [
     # comes up to C16; AUDIO_R loops under the Seed's lower edge to C17.  No crossings.
     ("AUDIO_L", "F.Cu", [("U1", "18"), (31.5, 46.82), (47.5, 46.82), (47.5, "C16:1"), ("C16", "1")]),
     ("AUDIO_R", "F.Cu", [("U1", "19"), (28.0, None), (28.0, 52.5), (51.0, 52.5), (51.0, "C17:1"), ("C17", "1")]),
-    ("AUDIO_L", "B.Cu", [("U1", "18"), (31.5, 46.82), (47.5, 46.82), (47.5, 19.4), (76.0, 19.4)]),
-    ("AUDIO_L", "VIA", (76.0, 19.4)),
-    ("AUDIO_L", "F.Cu", [(76.0, 19.4), ("C7", "1")]),
-    ("AUDIO_R", "B.Cu", [("U1", "19"), (31.5, 49.36), (48.3, 49.36), (48.3, 20.5), (71.0, 20.5)]),
-    ("AUDIO_R", "VIA", (71.0, 20.5)),
-    ("AUDIO_R", "F.Cu", [(71.0, 20.5), ("C8", "1")]),
+    ("AUDIO_L", "B.Cu", [("U1", "18"), (31.5, 46.82), (47.5, 46.82), (47.5, 19.4), (75.0, 19.4)]),
+    ("AUDIO_L", "VIA", (75.0, 19.4)),
+    ("AUDIO_L", "F.Cu", [(75.0, 19.4), ("C7", "1")]),
+    ("AUDIO_R", "B.Cu", [("U1", "19"), (31.5, 49.36), (48.3, 49.36), (48.3, 20.5), (70.0, 20.5)]),
+    ("AUDIO_R", "VIA", (70.0, 20.5)),
+    ("AUDIO_R", "F.Cu", [(70.0, 20.5), ("C8", "1")]),
     # MAX98306 right-side fan-out (pins top->bottom: 14 13 12 11 10 9 8): 0.2 mm stubs from the
     # 0.4 mm pitch pads straight to the ferrite beads / decoupling caps on F.Cu.
     ("SPK_LN", "F.Cu", [("U3", "14"), (U3X + 3.0, None), (U3X + 4.8, U3Y - 3.0), (U3X + 4.8, FB_ROWS["LN"]), ("FB1", "1")], 0.2),
@@ -445,6 +445,7 @@ PREROUTES = [
     ("VSYS", "F.Cu", [(116.25, "U5:11"), (116.25, 36.5), (122.3, 36.5)], 0.4),                  # ... down between the resistor rows to R28
     ("VSYS", "F.Cu", [("U5", "5"), (None, 27.5)], 0.2),                                          # EN2 (bottom row) = VSYS: stub down ...
     ("+5V", "F.Cu", [("R25", "1"), (128.0, None), (128.0, 34.5), (136.0, 34.5), (136.0, 37.9)], 0.25),   # FB divider top -> +5V, threading between R25/R26 pads
+    ("+5V", "F.Cu", [(136.0, 34.5), (136.0, 13.5), (131.08, 13.5), ("J9", "3")], 0.6),                  # +5V trunk from the boost up to the display header
     ("VSYS", "F.Cu", [(112.25, 27.5), (116.25, 27.5)], 0.4),                                     # ... and across to the same rail
     # GND stitching vias in open areas, so the two pours stay one net wherever the
     # autorouter's GND tracks leave a front-side island
@@ -946,14 +947,14 @@ def write_pcb(root_uuid):
         text(label, POT_X + 4.7, POT_Y0 + i * POT_PITCH - 1.25, 0.8, angle=90)   # beside the header, reads bottom-up
     text("USB-C", 16, 9.8, 1.0)
     text("BAT 1=+", 100, 17.5, 0.8)
-    text("PWR SW", 100, 27.2, 0.8)
+    text("PWR SW", 10.2, 38.75, 0.8, angle=90)
     text("CHG", 113, 17.0, 0.8)
     text("BOOST", 132.5, 36.0, 0.8)
     text("HP", 78, 21.0, 1.0)
     text("SPK L", 85, U3Y - 8.0, 0.9)
     text("SPK R", 85, U3Y + 8.0, 0.9)
     text("AMP", U3X, U3Y - 5.0, 0.9)
-    text("GAIN", 54.5, 61.8, 0.8)
+    text("GAIN", 70.5, 57.0, 0.8)
     text("HP AMP", 83, 25.0, 0.9)
     text("EXP", 93, 7.2, 0.9)
     text("DISP", 126, 7.2, 0.9)

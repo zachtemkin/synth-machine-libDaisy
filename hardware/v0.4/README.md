@@ -52,7 +52,9 @@ VSYS -> L1 1 uH / U6 TPS61023 -> +5V (5.1 V) -> Seed VIN, speaker amp, J8/J9 5V 
 - **Switch.** J16 takes a panel SPST. Closed, it pulls the boost's EN up to
   VSYS through R28; open, R27 holds it low and everything downstream of the
   boost is off, while the charger keeps charging. The EN pin draws nothing,
-  so any small switch works. JP2 bridges the switch for a bench board.
+  so any small switch works. J16 sits on the left edge at mid-height with JP2
+  beside it to bridge the switch on a bench board; the two enable lines run
+  across the board to the boost, which is fine for a pull-up-and-pin signal.
 - **Firmware signals.** A10 reads VBAT/2 (R23/R24, 0 to 2.1 V). A5 reads
   ~CHG (low = charging) and A11 reads ~PGOOD (low = USB present), both
   open-drain with 100k pull-ups. Nothing in the firmware uses them yet.
@@ -110,7 +112,7 @@ with power-width tracks on its own.
 | J10 | volume pot, JST-XH 3-pin, left edge below the USB-C | 3V3A, wiper, GND |
 | J5, J6 | speakers, JST-PH | + / - |
 | J17 | battery, JST-PH | 1 = +, 2 = GND |
-| J16 | power switch, JST-XH 2-pin | either way round |
+| J16 | power switch, JST-XH 2-pin, left edge mid-height (JP2 beside it bridges it) | either way round |
 | J15 | STEMMA QT, top-entry, top right | GND, 3V3, SDA, SCL |
 | J9 | display | GND, 3V3, 5V, SCK, MOSI, NSS, D/C, RST |
 | J8 | expansion | HP_MUTE, A1, A2, A4, A6, A9, HP_DET, MUTE, VSYS, 3V3, 5V, GND |

@@ -34,6 +34,16 @@ def add_pours(board_path, pours):
     sys.path.insert(0, HERE)
     from gen_kicad import BOARD_W, BOARD_H
     board = pcbnew.LoadBoard(board_path)
+    # Freerouting occasionally emits sub-minimum (0.1 mm) connection stubs at pads; widen
+    # them to the default track width so DRC's minimum-width rule passes.
+    min_w, dflt_w = pcbnew.FromMM(0.15), pcbnew.FromMM(0.2)
+    widened = 0
+    for t in board.GetTracks():
+        if t.GetClass() == "PCB_TRACK" and t.GetWidth() < min_w:
+            t.SetWidth(dflt_w)
+            widened += 1
+    if widened:
+        print("widened %d sub-minimum track segments to 0.2 mm" % widened)
     for z in list(board.Zones()):
         board.Remove(z)
         _KEEP.append(z)
