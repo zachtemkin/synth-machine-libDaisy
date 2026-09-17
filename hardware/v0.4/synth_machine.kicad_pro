@@ -386,6 +386,10 @@
       },
       {
         "netclass": "USB_Power",
+        "pattern": "+3V3P"
+      },
+      {
+        "netclass": "USB_Power",
         "pattern": "VBUS"
       }
     ]

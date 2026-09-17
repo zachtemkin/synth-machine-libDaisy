@@ -316,7 +316,7 @@ add("R12", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "HP_MUTE"}, sch=(184, 1
 add("J8", "Connector_Generic:Conn_01x12", "Expansion",
     "Connector_PinHeader_2.54mm:PinHeader_1x12_P2.54mm_Vertical",
     {"1": "HP_MUTE", "2": "EXP_A1", "3": "EXP_A2", "4": "EXP_A4", "5": "EXP_A6", "6": "EXP_A9",
-     "7": "HP_DET", "8": "MUTE", "9": "VSYS", "10": "+3V3", "11": "+5V", "12": "GND"},
+     "7": "HP_DET", "8": "MUTE", "9": "VSYS", "10": "+3V3P", "11": "+5V", "12": "GND"},
     sch=(200, 40, 0), pcb=(93.0, 10.0, 90), mpn="PPTC121LFBN-RC")
 
 # --- Display header: hardware SPI1 + D/C + reset -------------------------------------------
@@ -324,7 +324,7 @@ add("J8", "Connector_Generic:Conn_01x12", "Expansion",
 # active high, driven as a GPIO) both plug in here.  5V is for a TFT backlight.
 add("J9", "Connector_Generic:Conn_01x08", "Display (SPI1)",
     "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical",
-    {"1": "GND", "2": "+3V3", "3": "+5V", "4": "SPI_SCK", "5": "SPI_MOSI", "6": "SPI_NSS", "7": "DISP_DC", "8": "DISP_RST"},
+    {"1": "GND", "2": "+3V3P", "3": "+5V", "4": "SPI_SCK", "5": "SPI_MOSI", "6": "SPI_NSS", "7": "DISP_DC", "8": "DISP_RST"},
     sch=(200, 62, 0), pcb=(126.0, 10.0, 90), mpn="PPTC081LFBN-RC")
 
 # --- STEMMA QT / Qwiic: I2C1 for the seesaw encoder breakouts ------------------------------
@@ -332,10 +332,24 @@ add("J9", "Connector_Generic:Conn_01x08", "Display (SPI1)",
 # their own pull-ups; R16/R17 are footprints only (DNP) in case a chain needs stronger ones.
 add("J15", "Connector_Generic:Conn_01x04", "STEMMA QT (I2C1)",
     "Connector_JST:JST_SH_BM04B-SRSS-TB_1x04-1MP_P1.00mm_Vertical",
-    {"1": "GND", "2": "+3V3", "3": "I2C_SDA", "4": "I2C_SCL"},
+    {"1": "GND", "2": "+3V3P", "3": "I2C_SDA", "4": "I2C_SCL"},
     sch=(200, 80, 0), pcb=(150.0, 11.0, 0), lcsc="C160390", mpn="BM04B-SRSS-TB(LF)(SN)")   # top entry, cable leaves upward
-add("R16", "Device:R", "4k7 (DNP)", R_SMD, {"1": "+3V3", "2": "I2C_SDA"}, sch=(210, 88, 90), pcb=(150.0, 16.5, 0), dnp=True)
-add("R17", "Device:R", "4k7 (DNP)", R_SMD, {"1": "+3V3", "2": "I2C_SCL"}, sch=(216, 88, 90), pcb=(150.0, 20.5, 0), dnp=True)
+add("R16", "Device:R", "4k7 (DNP)", R_SMD, {"1": "+3V3P", "2": "I2C_SDA"}, sch=(210, 88, 90), pcb=(150.0, 16.5, 0), dnp=True)
+add("R17", "Device:R", "4k7 (DNP)", R_SMD, {"1": "+3V3P", "2": "I2C_SCL"}, sch=(216, 88, 90), pcb=(150.0, 20.5, 0), dnp=True)
+
+# --- Peripheral 3.3 V rail: AP7361C-33 LDO from +5V ----------------------------------------
+# The Seed's own regulator feeds only the Seed, the headphone amp and the pull-ups.  The four
+# seesaw encoder boards (NeoPixels up to 60 mA each), the display and anything on the
+# expansion header run from this 1 A LDO instead.  SOT-223 because 5.1 V -> 3.3 V at 300 mA
+# is 0.55 W; the tab is GND and sits on the pour.  KiCad's AP7361C symbol is an alias of the
+# SPX2920 one (1 IN, 2 GND tab, 3 OUT), which is the AP7361C SOT223 pinout per its datasheet.
+add("U7", "Regulator_Linear:SPX2920M3-3.3_SOT223", "AP7361C-33E-13", "Package_TO_SOT_SMD:SOT-223-3_TabPin2",
+    {"1": "+5V", "2": "GND", "3": "+3V3P"}, sch=(150, 156, 0), pcb=(141.0, 20.0, 0), lcsc="C500795", mpn="AP7361C-33E-13",
+    desc="Diodes AP7361C 1 A low-dropout regulator, 3.3 V, SOT-223")
+# SOT-223-3_TabPin2 at rot 0: pins 1/2/3 stacked at x = 137.85 (y 17.7 / 20.0 / 22.3), tab
+# (GND) on the right.  Input cap above pin 1, output cap below pin 3.
+add("C27", "Device:C", "10u", C_SMD, {"1": "+5V", "2": "GND"}, sch=(140, 160, 90), pcb=(138.0, 15.2, 0), lcsc="C15850")
+add("C28", "Device:C", "10u", C_SMD, {"1": "+3V3P", "2": "GND"}, sch=(160, 160, 90), pcb=(138.0, 25.5, 0), lcsc="C15850")
 
 # --- Battery: BQ24074 charger with power path, TPS61023 5 V boost --------------------------
 # VBUS -> F1 -> VUSB -> U5 IN.  U5 OUT (VSYS) is 4.4 V regulated while USB is present and the
@@ -466,6 +480,9 @@ PREROUTES = [
     ("+5V", "F.Cu", [(131.08, 13.5), (90.0, 13.5), (90.0, 46.5), (70.5, 46.5), (70.5, U3Y - 2.4)], 0.6),
     ("+5V", "VIA", (90.0, 13.5), 0.5),
     ("+5V", "F.Cu", [("J8", "11"), (None, 13.5)], 0.6),                                       # EXP header's 5V pin drops onto the trunk
+    ("+5V", "F.Cu", [(136.0, "U7:1"), ("U7", "1")], 0.6),                                     # trunk -> peripheral LDO input
+    ("+5V", "F.Cu", [("C27", "1"), (137.0, "U7:1")], 0.5),                                    # ... and its input cap, just above the pin
+    ("+3V3P", "F.Cu", [("U7", "3"), (None, "C28:1"), ("C28", "1")], 0.4),                     # output pin -> output cap below it
     ("+5V", "B.Cu", [(90.0, 13.5), (90.0, 18.3), (54.0, 18.3), ("C1", "1")], 0.6),
     ("+5V", "F.Cu", [("C24", "1"), (136.0, "C24:1"), (136.0, 13.5), (131.08, 13.5), ("J9", "3")], 0.6),   # +5V trunk from the output cap up to the display header
     ("VSYS", "F.Cu", [(112.25, 27.5), (116.25, 27.5)], 0.4),                                     # ... and across to the same rail
@@ -856,6 +873,7 @@ def write_schematic():
         ("MUTE: D0 -> R6 -> Q2 (2N7002) -> AMP_SD, pulled up by R15 so the speakers are muted until firmware drives D0 low. Q1 and Q2 drains are a wired-OR on AMP_SD.", 20, 120),
         ("BATTERY: BQ24074, EN2=1/EN1=0 -> 1.5A input limit (R19), 0.5A charge (R18), default timers, 10% termination, TS = 10k. VSYS = 4.4V on USB, else VBAT. ~CHG -> A5, ~PGOOD -> A11 (100k pull-ups). VBAT/2 -> A10.", 16, 144),
         ("BOOST: TPS61023 5.1V (750k/100k), 1uH, 10uF in, 2x22uF out + C1. EN from the panel switch on J16 (or JP2 bridged) via R28, R27 pull-down = off. Use a protected LiPo cell; J17 pin 1 = +.", 16, 146),
+        ("3V3P: AP7361C-33 LDO from +5V feeds the encoders (J15), the display (J9) and J8's 3V3 pin, so the Seed's regulator only carries the Seed, the headphone amp and pull-ups.", 16, 148),
         ("EXPANSION: spare Seed GPIO/ADC + 3V3/5V/GND.  DISPLAY: SPI1 (A7 SCK, A3 MOSI, A8 NSS) + D26 D/C + D27 RST.  STEMMA QT: I2C1 (D11 SCL, D12 SDA) for seesaw encoders.", 78, 30),
     ]
     for txt, x, y in notes:
@@ -981,6 +999,7 @@ def write_pcb(root_uuid):
     text("EXP", 93, 7.2, 0.9)
     text("DISP", 126, 7.2, 0.9)
     text("I2C ENC", 150.0, 24.0, 0.8)
+    text("3V3P", 141.5, 28.8, 0.8)
     text("ESD", 17.5, 17.0, 0.8)
 
     # GND pours (unfilled; press B in pcbnew)
@@ -1022,8 +1041,8 @@ def write_pcb(root_uuid):
         # +3V3 / +3.3VA carry tens of mA at most and have to reach TSSOP pads: default class
         for pat in ("+5V", "+5V_SW", "SPKF_*"):
             ns.SetNetclassPatternAssignment(pat, "Power")
-        for pat in ("VSYS", "VBAT", "VUSB", "BOOST_SW"):
-            ns.SetNetclassPatternAssignment(pat, "USB_Power")   # 0.4 mm: the battery rails
+        for pat in ("VSYS", "VBAT", "VUSB", "BOOST_SW", "+3V3P"):
+            ns.SetNetclassPatternAssignment(pat, "USB_Power")   # 0.4 mm: the battery rails and the peripheral 3V3
         ns.SetNetclassPatternAssignment("VBUS", "USB_Power")
         print("netclasses set")
     except Exception as e:

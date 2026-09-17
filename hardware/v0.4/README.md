@@ -19,6 +19,7 @@ still share the top edge.
 | Display header | J9: GND, 3V3, 5V, SCK (A7), MOSI (A3), NSS (A8), D/C (D26), RST (D27) | Hardware SPI1 for an OLED or a Sharp memory LCD. |
 | Encoders instead of bank pots | J11..J14 removed; only J10 (volume) remains | The four bank controls are seesaw rotary encoders on J15. Their old ADC pins go to the expansion header. |
 | USB ESD, SMD fuse | U4 USBLC6-2SC6, F1 1812 PTC on the USB input | Data lines were unprotected; the radial fuse collided with the Seed. |
+| Peripheral 3.3 V rail | U7 AP7361C-33 (SOT-223, 1 A) from +5V, C27/C28 | Feeds the encoders, the display and the expansion header's 3V3 pin, so the Seed's regulator carries only the Seed, the headphone amp and pull-ups. |
 | Assembly-ready BOM | every part has an MPN or LCSC number | `fab.sh` writes `pcbway_bom.csv` / `pcbway_cpl.csv`. |
 
 Only the volume pot header remains (A0). The four bank controls are I2C
@@ -33,6 +34,7 @@ USB-C J1 -> F1 2.5 A PTC -> VUSB -> U5 BQ24074 IN
                                     U5 BAT  <-> J17 cell (+ C22)
                                     U5 OUT   -> VSYS (4.4 V on USB, else the cell)
 VSYS -> L1 1 uH / U6 TPS61023 -> +5V (5.1 V) -> Seed VIN, speaker amp, J8/J9 5V pins
+                                       +5V -> U7 AP7361C-33 -> 3V3P -> J15 encoders, J9 display, J8 3V3
 ```
 
 - **Charger.** EN2 high and EN1 low select the resistor-programmed input
@@ -113,9 +115,9 @@ with power-width tracks on its own.
 | J5, J6 | speakers, JST-PH | + / - |
 | J17 | battery, JST-PH | 1 = +, 2 = GND |
 | J16 | power switch, JST-XH 2-pin, left edge mid-height (JP2 beside it bridges it) | either way round |
-| J15 | STEMMA QT, top-entry, top right | GND, 3V3, SDA, SCL |
-| J9 | display | GND, 3V3, 5V, SCK, MOSI, NSS, D/C, RST |
-| J8 | expansion | HP_MUTE, A1, A2, A4, A6, A9, HP_DET, MUTE, VSYS, 3V3, 5V, GND |
+| J15 | STEMMA QT, top-entry, top right | GND, 3V3P, SDA, SCL |
+| J9 | display | GND, 3V3P, 5V, SCK, MOSI, NSS, D/C, RST |
+| J8 | expansion | HP_MUTE, A1, A2, A4, A6, A9, HP_DET, MUTE, VSYS, 3V3P, 5V, GND |
 
 ## Ordering with assembly (PCBWay)
 
@@ -148,10 +150,13 @@ Things checked after the layout settled, and what was changed or accepted:
   but within limits; the amp's 2 A peaks are brief. Keep the ground pour
   under it. If a future revision needs more headroom, the TPS61088 in a
   QFN is the drop-in class.
-- **Seed 3V3 budget.** The Seed's regulator also feeds the headphone amp,
-  the display, and the four seesaw encoder boards. Their NeoPixels can draw
-  up to 60 mA each at full white; keep them dim in firmware or the rail
-  sags. Nothing on the board itself needs more than tens of milliamps.
+- **Seed 3V3 budget.** Solved with a separate rail: the Seed's regulator
+  feeds only the Seed, the headphone amp and the pull-ups (tens of
+  milliamps). The encoders, display and expansion header run from U7, a
+  1 A SOT-223 LDO on the +5V rail (3V3P). At 300 mA it dissipates about
+  0.55 W, a 30 K rise on its ground tab and pour. On battery that rail is
+  boost-then-LDO, roughly 60 % efficient, about 20 mA of extra cell current
+  at typical loads. The headphone amp stays on the Seed's quieter rail.
 - **USB-C current.** The CC pull-downs advertise a sink but the firmware does
   not read the source's advertisement, so the charger's 1.5 A input limit
   applies to any port; the charger's VIN-DPM loop throttles rather than
