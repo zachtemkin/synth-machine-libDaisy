@@ -80,10 +80,18 @@ using namespace daisy::seed;
 //   breakout.
 //                                         D11 goes straight to the amp's SD
 //                                         pin. No headphone jack.
-//   make HW=carrier   SYNTH_HW_CARRIER    Carrier board in hardware/. D11 mutes
-//                                         through transistor Q1, TPA6138A2
-//                                         headphone amp with plug detect on
-//                                         D13/D14.
+//   make HW=carrier   SYNTH_HW_CARRIER    Carrier board v0.3 in hardware/. D11
+//                                         mutes through transistor Q1,
+//                                         TPA6138A2 headphone amp with plug
+//                                         detect on D13/D14.
+//   make HW=carrier4  SYNTH_HW_CARRIER    Carrier board v0.4 in hardware/v0.4/.
+//                     + SYNTH_HW_CARRIER_V4
+//                                         As v0.3, but the mute is D0 driving
+//                                         its own MOSFET Q2, push-pull (high =
+//                                         mute, pulled up so muted at reset),
+//                                         HP_DET on D13 reads a real 3V3, and
+//                                         pot 4 is on A9 (A3 is SPI1 MOSI for
+//                                         the display header).
 //
 // Building with neither define falls back to the prototype.
 #if defined(SYNTH_HW_CARRIER) && defined(SYNTH_HW_PROTOTYPE)
@@ -131,8 +139,13 @@ static constexpr Pin COL_PINS[6] = {seed::D4, seed::D5, seed::D6,
 static constexpr Pin ROW_PINS[3] = {seed::D1, seed::D2, seed::D3};
 static constexpr Pin C4_PIN = seed::D10;
 
-// Speaker amp mute. Same pin on both boards, different drive (see SpeakerAmp).
+// Speaker amp mute. Same pin on the prototype and the v0.3 carrier, different
+// drive (see SpeakerAmp); the v0.4 carrier moved it to D0 to free I2C1.
+#if defined(SYNTH_HW_CARRIER_V4)
+static constexpr Pin SPEAKER_MUTE_PIN = seed::D0;
+#else
 static constexpr Pin SPEAKER_MUTE_PIN = seed::D11;
+#endif
 #if defined(SYNTH_HW_CARRIER)
 static constexpr Pin HP_DET_PIN = seed::D13;  // jack switch: high = plug in
 static constexpr Pin HP_MUTE_PIN = seed::D14; // TPA6138A2 ~MUTE, active low
@@ -182,7 +195,23 @@ class SpeakerAmp {
   GPIO pin;
 
 public:
-#if defined(SYNTH_HW_CARRIER)
+#if defined(SYNTH_HW_CARRIER_V4)
+  // Carrier v0.4: D0 (net MUTE) drives the gate of its own MOSFET Q2 through
+  // 10k, with a 10k pull-up, and Q2's drain pulls the amp's ~SHDN low. The
+  // headphone plug detect has its own MOSFET Q1 on the same drain, so the two
+  // never interact: high = muted (also the reset default, via the pull-up),
+  // low = run, and headphones still mute the speakers in hardware.
+  void Init() {
+    // Set the latch high before the pin becomes an output so it never drives
+    // low, even for an instant, on the way to muted.
+    pin.Init(SPEAKER_MUTE_PIN, GPIO::Mode::INPUT, GPIO::Pull::NOPULL);
+    pin.Write(true);
+    pin.Init(SPEAKER_MUTE_PIN, GPIO::Mode::OUTPUT, GPIO::Pull::NOPULL);
+    Mute();
+  }
+  void Mute() { pin.Write(true); }
+  void Run() { pin.Write(false); }
+#elif defined(SYNTH_HW_CARRIER)
   // Carrier: D11 (net MUTE) feeds the base of Q1 through 10k, and Q1's
   // collector pulls the amp's ~SHDN low. The headphone jack's plug-detect
   // feeds the same base through its own 10k, with only a 100k pull-up behind
@@ -690,7 +719,11 @@ public:
     adcConfig[0].InitSingle(seed::A0); // Wave shape
     adcConfig[1].InitSingle(seed::A1); // Attack
     adcConfig[2].InitSingle(seed::A2); // Decay
+#if defined(SYNTH_HW_CARRIER_V4)
+    adcConfig[3].InitSingle(seed::A9); // pot 4 (A3 is SPI1 MOSI on v0.4)
+#else
     adcConfig[3].InitSingle(seed::A3); // Sustain
+#endif
     adcConfig[4].InitSingle(seed::A4); // Release
 #if defined(SYNTH_HP_DET_ADC)
     adcConfig[HP_DET_ADC_CHANNEL].InitSingle(seed::A5); // HP_DET via jumper

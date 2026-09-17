@@ -4,6 +4,10 @@ Running list of things to change when the carrier board is respun. The v0.3
 boards in production work with the firmware as of September 2026; everything
 here is a nicety or a robustness fix, not a blocker.
 
+**Status:** items 1 to 5 and the ESD protection from item 6 are implemented
+in `v0.4/` (generated, routed, with a PCBWay BOM). See `v0.4/README.md` for
+what each one became on the board.
+
 ## 1. Give MUTE its own transistor and a pull-up
 
 **Problem.** MUTE (D11) and the headphone jack's plug-detect (HP_DET) both

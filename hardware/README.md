@@ -1,5 +1,8 @@
 # synthMachine carrier board
 
+This is v0.3, the revision that was fabricated. The next revision, with the
+fixes from `NEXT_REVISION.md` applied, is in `v0.4/` and has its own README.
+
 A 100 x 100 mm carrier for the Daisy Seed (or Seed3) that drives the synth: the
 19-button key matrix, 5 pots, USB-C for MIDI and power, a MAX98306 class-D amp
 for the two enclosed Adafruit speakers, and a TPA6138A2 headphone amp with a
