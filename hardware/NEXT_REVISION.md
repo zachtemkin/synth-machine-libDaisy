@@ -95,6 +95,10 @@ one case for the OLED instead.
 
 ## 4. Rotary encoders over I2C in place of pots 2 to 5
 
+**Done in v0.4:** J11..J14 are gone, J10 (volume) stays, J15 is the STEMMA
+QT connector on I2C1, and A1/A2/A4/A9 went to the expansion header. Firmware
+support for the encoders is still to do.
+
 **Idea.** Keep the leftmost pot as an absolute master volume and replace the
 other four with rotary encoders on Adafruit seesaw breakouts, connected over
 STEMMA QT. Do this together with the display (item 3): an encoder has no

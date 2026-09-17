@@ -16,12 +16,15 @@ still share the top edge.
 | Plug detect reaches 3V3 | Q1 is a 2N7002 MOSFET | The v0.3 BJT clamped HP_DET at 0.8 V so D13 never saw a plug. No jumper, no `HP_DET=adc`. |
 | Firmware mute on its own transistor | Q2 2N7002, R6 gate, R15 pull-up; MUTE on D0 | Muted at reset, in DFU and after a crash; firmware drives D0 low to run. Wired-OR with Q1. |
 | I2C for encoders | J15 STEMMA QT on I2C1 (D11 SCL, D12 SDA); R16/R17 pull-ups DNP | For the seesaw rotary-encoder breakouts. |
-| Display header | J9: GND, 3V3, 5V, SCK (A7), MOSI (A3), NSS (A8), D/C (D26), RST (D27) | Hardware SPI1 for an OLED or a Sharp memory LCD. Pot 4 moved to A9 to free A3. |
+| Display header | J9: GND, 3V3, 5V, SCK (A7), MOSI (A3), NSS (A8), D/C (D26), RST (D27) | Hardware SPI1 for an OLED or a Sharp memory LCD. |
+| Encoders instead of bank pots | J11..J14 removed; only J10 (volume) remains | The four bank controls are seesaw rotary encoders on J15. Their old ADC pins go to the expansion header. |
 | USB ESD, SMD fuse | U4 USBLC6-2SC6, F1 1812 PTC on the USB input | Data lines were unprotected; the radial fuse collided with the Seed. |
 | Assembly-ready BOM | every part has an MPN or LCSC number | `fab.sh` writes `pcbway_bom.csv` / `pcbway_cpl.csv`. |
 
-The five pot headers stay (VOL on A0, then A1, A2, A9, A4) so the board works
-with pots or with encoders on J15.
+Only the volume pot header remains (A0). The four bank controls are I2C
+rotary encoders on J15, chained over STEMMA QT. The firmware profile
+`HW=carrier4` reads A0 only and leaves the bank inputs alone until the
+encoder support exists.
 
 ## Power
 
@@ -90,7 +93,7 @@ with power-width tracks on its own.
 | D13 | HP_DET, high = headphones plugged in |
 | D14 | HP_MUTE, headphone amp ~MUTE, low = muted |
 | A0 | volume pot |
-| A1, A2, A9, A4 | pots 2, 3, 4, 5 |
+| A1, A2, A4, A9 | spare, on J8 (the old bank pot inputs) |
 | A3, A7, A8 | SPI1 MOSI, SCK, NSS (display) |
 | A5 | ~CHG from the charger, low = charging |
 | A6 | spare, on J8 (seesaw INT candidate) |
@@ -104,13 +107,13 @@ with power-width tracks on its own.
 | Ref | What | Pins |
 |---|---|---|
 | K1..K19 | keys, JST-XH 2-pin, bottom row in panel order | row / diode (any way round) |
-| J10..J14 | pots, JST-XH 3-pin, right edge | 3V3A, wiper, GND |
+| J10 | volume pot, JST-XH 3-pin, right edge | 3V3A, wiper, GND |
 | J5, J6 | speakers, JST-PH | + / - |
 | J17 | battery, JST-PH | 1 = +, 2 = GND |
 | J16 | power switch, JST-XH 2-pin | either way round |
 | J15 | STEMMA QT | GND, 3V3, SDA, SCL |
 | J9 | display | GND, 3V3, 5V, SCK, MOSI, NSS, D/C, RST |
-| J8 | expansion | HP_MUTE, A6, HP_DET, MUTE, VSYS, 3V3, 5V, GND |
+| J8 | expansion | HP_MUTE, A1, A2, A4, A6, A9, HP_DET, MUTE, VSYS, 3V3, 5V, GND |
 
 ## Ordering with assembly (PCBWay)
 
@@ -118,7 +121,7 @@ with power-width tracks on its own.
 quantity, manufacturer part number, LCSC number, value, package and whether it
 is SMD or through-hole. `fab/pcbway_cpl.csv` has both sides. Upload the
 Gerber zip, the BOM and the CPL; on the quote, tick at least J1 (USB-C), the
-19 K headers, J10..J14, J5/J6, J16, J17 and J15 for placement. The Seed
+19 K headers, J10, J5/J6, J16, J17 and J15 for placement. The Seed
 sockets, C1 and the jack can go in the same job or be hand-fitted. The
 JLCPCB files are still produced too, for the SMD-only economic route.
 

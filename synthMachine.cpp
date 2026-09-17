@@ -90,8 +90,10 @@ using namespace daisy::seed;
 //                                         its own MOSFET Q2, push-pull (high =
 //                                         mute, pulled up so muted at reset),
 //                                         HP_DET on D13 reads a real 3V3, and
-//                                         pot 4 is on A9 (A3 is SPI1 MOSI for
-//                                         the display header).
+//                                         only the volume pot (A0) exists; the
+//                                         four bank controls are I2C encoders
+//                                         (not driven by this firmware yet), so
+//                                         the bank pots are not read.
 //
 // Building with neither define falls back to the prototype.
 #if defined(SYNTH_HW_CARRIER) && defined(SYNTH_HW_PROTOTYPE)
@@ -719,11 +721,7 @@ public:
     adcConfig[0].InitSingle(seed::A0); // Wave shape
     adcConfig[1].InitSingle(seed::A1); // Attack
     adcConfig[2].InitSingle(seed::A2); // Decay
-#if defined(SYNTH_HW_CARRIER_V4)
-    adcConfig[3].InitSingle(seed::A9); // pot 4 (A3 is SPI1 MOSI on v0.4)
-#else
-    adcConfig[3].InitSingle(seed::A3); // Sustain
-#endif
+    adcConfig[3].InitSingle(seed::A3); // Sustain (v0.4: unused, A3 is SPI MOSI)
     adcConfig[4].InitSingle(seed::A4); // Release
 #if defined(SYNTH_HP_DET_ADC)
     adcConfig[HP_DET_ADC_CHANNEL].InitSingle(seed::A5); // HP_DET via jumper
@@ -918,7 +916,12 @@ public:
       applyParam(p0, params[p0].value);
     }
 
-    // A1..A4: whatever the current pot mode assigns them
+    // A1..A4: whatever the current pot mode assigns them. The v0.4 carrier
+    // has no bank pots (encoders over I2C instead, not yet supported), so
+    // those inputs float and are left alone.
+#if defined(SYNTH_HW_CARRIER_V4)
+    return;
+#endif
     for (int i = 0; i < BANK_POTS; i++) {
       Param p = POT_MODES[potMode][i];
       if (p == P_NONE) {

@@ -8,7 +8,8 @@ v0.4 changes against v0.3 (see ../NEXT_REVISION.md):
     on D0, pulled up so the speakers default to muted at reset.
   - I2C1 (D11 SCL, D12 SDA) on a STEMMA QT connector for seesaw encoders.
   - Display header on hardware SPI1 (A7 SCK, A3 MOSI, A8 NSS) + D26 D/C, D27 RST.
-    Pot 4 moves from A3 to A9 so the four pot headers stay usable.
+  - Only the volume pot stays; the four bank pots are I2C encoders on the STEMMA
+    QT connector, and A1/A2/A4/A9 go to the expansion header.
   - USBLC6-2SC6 ESD protection on the USB-C data lines.
   - F1 is an SMD 1812 PTC (the radial one collided with the Seed).
   - Every part carries an MPN for PCBWay assembly (fab.sh writes the BOM).
@@ -35,8 +36,8 @@ both generated from it, and every footprint carries the schematic symbol's UUID
 path so "Update PCB from Schematic" keeps working after you edit either side.
 
 Pin usage mirrors synthMachine.cpp (HW=carrier4):
-  matrix columns D4..D9, rows D1..D3, direct C4 key on D10, pots on A0, A1, A2,
-  A9, A4, MUTE on D0, HP_DET D13, HP_MUTE D14, I2C1 on D11/D12, SPI1 on
+  matrix columns D4..D9, rows D1..D3, direct C4 key on D10, volume pot on A0,
+  MUTE on D0, HP_DET D13, HP_MUTE D14, I2C1 on D11/D12 (encoders), SPI1 on
   A7/A3/A8 with D26/D27, external USB (MIDI) on D29/D30, audio out L/R,
   battery: A10 = VBAT/2, A5 = ~CHG, A11 = ~PGOOD (USB present).
 """
@@ -119,15 +120,15 @@ SEED_PINS = {
     20: ("AGND", "power_in", "GND"),
     21: ("+3V3A", "power_out", "+3.3VA"),
     22: ("A0/D15", "bidirectional", "POT_VOL"),
-    23: ("A1/D16", "bidirectional", "POT_2"),
-    24: ("A2/D17", "bidirectional", "POT_3"),
+    23: ("A1/D16", "bidirectional", "EXP_A1"),
+    24: ("A2/D17", "bidirectional", "EXP_A2"),
     25: ("A3/D18", "bidirectional", "SPI_MOSI"),    # SPI1 MOSI (PA7) for the display
-    26: ("A4/D19", "bidirectional", "POT_5"),
+    26: ("A4/D19", "bidirectional", "EXP_A4"),
     27: ("A5/D20", "bidirectional", "CHG_STAT"),     # ~CHG from the charger, low = charging
     28: ("A6/D21", "bidirectional", "EXP_A6"),
     29: ("A7/D22", "bidirectional", "SPI_SCK"),     # SPI1 SCK (PA5)
     30: ("A8/D23", "bidirectional", "SPI_NSS"),     # SPI1 NSS (PA4)
-    31: ("A9/D24", "bidirectional", "POT_4"),       # was A3 on v0.3
+    31: ("A9/D24", "bidirectional", "EXP_A9"),
     32: ("A10/D25", "bidirectional", "VBAT_SENSE"),  # battery voltage / 2
     33: ("D26", "bidirectional", "DISP_DC"),
     34: ("D27", "bidirectional", "DISP_RST"),
@@ -185,13 +186,11 @@ for i, (name, mat) in enumerate(KEYS):
             {"2": mid, "1": "COL%d" % c}, sch=(sx + 6, sy, 180), pcb=(dx, dy, drot), lcsc="C81598")
         dn += 1
 
-# --- Pots: panel-mount, one JST-XH 3-pin header each, down the right edge ---------------------
-# Pot 1 is master volume (A0).  Pots 2..5 are the bank the mode buttons select; the plan is
-# to replace them with I2C encoders (J15), but the headers stay so the board works either way.
-# Pot 4 is on A9 (not A3) because A3 is SPI1 MOSI for the display header.
-POTS = [("J10", "POT_VOL", "VOL"), ("J11", "POT_2", "POT2"), ("J12", "POT_3", "POT3"),
-        ("J13", "POT_4", "POT4"), ("J14", "POT_5", "POT5")]
-POT_X, POT_Y0, POT_PITCH = 152.0, 8.5, 8.5      # stacked up the right edge, pins running right
+# --- Pot: master volume only, JST-XH 3-pin on the right edge --------------------------------
+# The four bank pots of v0.3 are replaced by I2C rotary encoders on J15 (STEMMA QT).  Their
+# ADC pins (A1, A2, A4, A9) go to the expansion header instead.
+POTS = [("J10", "POT_VOL", "VOL")]
+POT_X, POT_Y0, POT_PITCH = 152.0, 10.5, 8.5
 for i, (ref, net, label) in enumerate(POTS):
     add(ref, "Connector_Generic:Conn_01x03", "Pot %s (10k lin, panel) JST-XH" % label, XH3_FP,
         {"1": "+3.3VA", "2": net, "3": "GND"}, sch=(78 + i * 12, 36, 0), pcb=(POT_X, POT_Y0 + i * POT_PITCH, 0), mpn=XH3_MPN)
@@ -314,10 +313,11 @@ add("C13", "Device:C", "10u", C_SMD, {"1": "+3V3", "2": "GND"}, sch=(178, 122, 9
 add("R12", "Device:R", "100k", R_SMD, {"1": "+3V3", "2": "HP_MUTE"}, sch=(184, 122, 90), pcb=(66.0, 36.0, 0), lcsc="C149504")
 
 # --- Expansion header (spare Seed pins) -------------------------------------
-add("J8", "Connector_Generic:Conn_01x08", "Expansion",
-    "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical",
-    {"1": "HP_MUTE", "2": "EXP_A6", "3": "HP_DET", "4": "MUTE", "5": "VSYS", "6": "+3V3", "7": "+5V", "8": "GND"},
-    sch=(200, 40, 0), pcb=(95.0, 10.0, 90), mpn="PPTC081LFBN-RC")
+add("J8", "Connector_Generic:Conn_01x12", "Expansion",
+    "Connector_PinHeader_2.54mm:PinHeader_1x12_P2.54mm_Vertical",
+    {"1": "HP_MUTE", "2": "EXP_A1", "3": "EXP_A2", "4": "EXP_A4", "5": "EXP_A6", "6": "EXP_A9",
+     "7": "HP_DET", "8": "MUTE", "9": "VSYS", "10": "+3V3", "11": "+5V", "12": "GND"},
+    sch=(200, 40, 0), pcb=(93.0, 10.0, 90), mpn="PPTC121LFBN-RC")
 
 # --- Display header: hardware SPI1 + D/C + reset -------------------------------------------
 # SSD1306/SH1106 OLED (4-wire SPI) or a Sharp memory LCD (CLK = SCK, DI = MOSI, CS = NSS,
@@ -325,7 +325,7 @@ add("J8", "Connector_Generic:Conn_01x08", "Expansion",
 add("J9", "Connector_Generic:Conn_01x08", "Display (SPI1)",
     "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical",
     {"1": "GND", "2": "+3V3", "3": "+5V", "4": "SPI_SCK", "5": "SPI_MOSI", "6": "SPI_NSS", "7": "DISP_DC", "8": "DISP_RST"},
-    sch=(200, 62, 0), pcb=(118.0, 10.0, 90), mpn="PPTC081LFBN-RC")
+    sch=(200, 62, 0), pcb=(126.0, 10.0, 90), mpn="PPTC081LFBN-RC")
 
 # --- STEMMA QT / Qwiic: I2C1 for the seesaw encoder breakouts ------------------------------
 # JST SH 4-pin, Adafruit/SparkFun pinout: 1 GND, 2 3V3, 3 SDA, 4 SCL.  The breakouts carry
@@ -333,9 +333,9 @@ add("J9", "Connector_Generic:Conn_01x08", "Display (SPI1)",
 add("J15", "Connector_Generic:Conn_01x04", "STEMMA QT (I2C1)",
     "Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal",
     {"1": "GND", "2": "+3V3", "3": "I2C_SDA", "4": "I2C_SCL"},
-    sch=(200, 80, 0), pcb=(156.4, 51.0, 90), lcsc="C160404", mpn="SM04B-SRSS-TB(LF)(SN)")
-add("R16", "Device:R", "4k7 (DNP)", R_SMD, {"1": "+3V3", "2": "I2C_SDA"}, sch=(210, 88, 90), pcb=(149.5, 48.0, 0), dnp=True)
-add("R17", "Device:R", "4k7 (DNP)", R_SMD, {"1": "+3V3", "2": "I2C_SCL"}, sch=(216, 88, 90), pcb=(149.5, 53.0, 0), dnp=True)
+    sch=(200, 80, 0), pcb=(156.4, 26.0, 90), lcsc="C160404", mpn="SM04B-SRSS-TB(LF)(SN)")
+add("R16", "Device:R", "4k7 (DNP)", R_SMD, {"1": "+3V3", "2": "I2C_SDA"}, sch=(210, 88, 90), pcb=(149.5, 23.0, 0), dnp=True)
+add("R17", "Device:R", "4k7 (DNP)", R_SMD, {"1": "+3V3", "2": "I2C_SCL"}, sch=(216, 88, 90), pcb=(149.5, 28.0, 0), dnp=True)
 
 # --- Battery: BQ24074 charger with power path, TPS61023 5 V boost --------------------------
 # VBUS -> F1 -> VUSB -> U5 IN.  U5 OUT (VSYS) is 4.4 V regulated while USB is present and the
@@ -441,6 +441,10 @@ PREROUTES = [
     ("GND", "F.Cu", [("U6", "4"), (None, 42.4)], 0.25),
     ("+5V", "F.Cu", [("C24", "1"), (139.6, "C24:1"), (139.6, "C25:1"), ("C25", "1")], 0.6),   # both output caps, around C24's GND pad
     ("VSYS", "F.Cu", [("R28", "1"), (122.3, None), (122.3, 40.95), (128.2, 40.95)], 0.4),      # switch pull-up -> boost input, under R27/R25
+    ("VSYS", "F.Cu", [("U5", "11"), (116.25, None)], 0.2),                                       # charger OUT (0.5 mm pitch) ...
+    ("VSYS", "F.Cu", [(116.25, "U5:11"), (116.25, 36.5), (122.3, 36.5)], 0.4),                  # ... down between the resistor rows to R28
+    ("VSYS", "F.Cu", [("U5", "5"), (None, 27.5)], 0.2),                                          # EN2 (bottom row) = VSYS: stub down ...
+    ("VSYS", "F.Cu", [(112.25, 27.5), (116.25, 27.5)], 0.4),                                     # ... and across to the same rail
     # GND stitching vias in open areas, so the two pours stay one net wherever the
     # autorouter's GND tracks leave a front-side island
     *[("GND", "VIA", xy) for xy in ((10.0, 30.0), (10.0, 50.0), (26.5, 62.0), (66.0, 14.0), (91.0, 30.0),
@@ -819,7 +823,7 @@ def write_schematic():
     notes = [
         ("KEY MATRIX: columns D4-D9 driven low one at a time, rows D1-D3 read with pull-ups (see scanButtonMatrix). Diode anode to switch, cathode to column.", 78, 3),
         ("C4 is a direct key on D10 to GND (firmware uses internal pull-up).  BTN1-6 = top-row buttons on the 6 unused matrix slots (NOTE_MAPPING -1 entries).", 78, 5),
-        ("POTS: panel-mount 10k linear pots on JST-XH 3-pin: 1 = +3V3A, 2 = wiper, 3 = AGND. VOL = A0, POT2 = A1, POT3 = A2, POT4 = A9, POT5 = A4.  KEYS: panel buttons on JST-XH 2-pin, one per key.", 78, 32),
+        ("POT: master volume, 10k linear on JST-XH 3-pin: 1 = +3V3A, 2 = wiper -> A0, 3 = AGND. The four bank controls are I2C encoders on J15. KEYS: panel buttons on JST-XH 2-pin, one per key.", 78, 32),
         ("POWER: VBUS -> F1 2.5A PTC -> VUSB -> U5 charger (power path) -> VSYS -> U6 boost -> +5V for Seed VIN and the amp. 5.1k CC pull-downs advertise a 1.5A sink. U4 = ESD on D+/D-.", 20, 88),
         ("USB-C data to D29/D30 = Daisy 'external' USB. In firmware use MidiUsbTransport::Config::EXTERNAL.", 20, 90),
         ("AMP: MAX98306 on board, single-ended inputs (1u caps, - inputs to GND). Gain: R13 100k to PVDD = 9 dB, JP1 straps GAIN to GND (18 dB) or PVDD (12 dB). Outputs -> ferrite + 220p EMI filter -> JST-PH.", 120, 90),
@@ -950,9 +954,9 @@ def write_pcb(root_uuid):
     text("AMP", U3X, U3Y - 5.0, 0.9)
     text("GAIN", 54.5, 61.8, 0.8)
     text("HP AMP", 83, 25.0, 0.9)
-    text("EXP", 95, 7.2, 0.9)
-    text("DISP", 118, 7.2, 0.9)
-    text("I2C", 149.5, 57.5, 0.9)
+    text("EXP", 93, 7.2, 0.9)
+    text("DISP", 126, 7.2, 0.9)
+    text("I2C ENC", 152.0, 32.5, 0.8)
     text("ESD", 17.5, 17.0, 0.8)
 
     # GND pours (unfilled; press B in pcbnew)
