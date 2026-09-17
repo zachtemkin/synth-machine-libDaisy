@@ -127,6 +127,44 @@ Gerber zip, the BOM and the CPL; on the quote, tick at least J1 (USB-C), the
 sockets, C1 and the jack can go in the same job or be hand-fitted. The
 JLCPCB files are still produced too, for the SMD-only economic route.
 
+## Design review notes (v0.4 quality pass)
+
+Things checked after the layout settled, and what was changed or accepted:
+
+- **Current paths.** Every net that carries real current was audited for
+  width: VBUS/VUSB/VBAT/VSYS 0.4 mm, +5V and the filtered speaker lines
+  0.6 mm, with 0.5 mm-drill vias. The only narrow copper left is the
+  unavoidable necks onto fine-pitch pads: 0.3 mm for less than 1 mm at the
+  boost's VIN/SW/VOUT/GND pins (0.35 mm pads, 0.5 mm pitch) and 0.2 mm for
+  about 1 mm at the amp's PVDD and speaker pins (0.4 mm pitch). The amp's
+  two PVDD pins are joined right off the pads into one 0.5 mm feed. The
+  boost's input and output capacitors sit at its pins with 0.6 mm copper.
+- **Power switch really switches off.** The TPS61023 has true input-to-output
+  disconnect in shutdown, so with EN low nothing reaches the Seed's VIN.
+- **Bulk capacitor on the boost.** The 470 uF electrolytic on +5V is inside
+  the TPS61023's stated 4 to 1000 uF effective output range.
+- **Boost thermals.** SOT-563 is about 120 to 140 K/W. At 1 A out from a
+  3.3 V cell the part dissipates about 0.5 W, so it runs warm (60 K rise)
+  but within limits; the amp's 2 A peaks are brief. Keep the ground pour
+  under it. If a future revision needs more headroom, the TPS61088 in a
+  QFN is the drop-in class.
+- **Seed 3V3 budget.** The Seed's regulator also feeds the headphone amp,
+  the display, and the four seesaw encoder boards. Their NeoPixels can draw
+  up to 60 mA each at full white; keep them dim in firmware or the rail
+  sags. Nothing on the board itself needs more than tens of milliamps.
+- **USB-C current.** The CC pull-downs advertise a sink but the firmware does
+  not read the source's advertisement, so the charger's 1.5 A input limit
+  applies to any port; the charger's VIN-DPM loop throttles rather than
+  crashes a 500 mA port. A CC ADC read would let firmware lower ILIM later.
+- **Battery divider on the ADC.** 100k/100k is a 50k source impedance, high
+  for the STM32 ADC's sampling time; the 100 nF across the bottom resistor
+  is what makes the reading settle. Do not drop it.
+- **Reverse cell.** No reverse-polarity protection on J17 by design (a diode
+  would cost the charger its regulation). The polarity check below is the
+  protection.
+- **Quiescent when off.** Charger from the cell, boost leakage and the sense
+  divider add up to about 25 uA, years on any usable cell.
+
 ## Check before ordering
 
 1. **J17 polarity** against the cell you will use: pin 1 is + here, and the

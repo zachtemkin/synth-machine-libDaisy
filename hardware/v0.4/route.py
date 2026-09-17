@@ -75,7 +75,8 @@ def add_pours(board_path, pours):
 
 
 def preroute(board):
-    """Add the hand-routed, locked tracks listed in gen_kicad.PREROUTES."""
+    """Add the hand-routed, locked tracks listed in gen_kicad.PREROUTES.
+    Entries: (net, layer, points[, width_mm]) or (net, "VIA", (x, y)[, drill_mm])."""
     import pcbnew
     sys.path.insert(0, HERE)
     from gen_kicad import PREROUTES, PREROUTE_WIDTH
@@ -111,15 +112,16 @@ def preroute(board):
         net, layer, geom = entry[:3]
         width = entry[3] if len(entry) > 3 else PREROUTE_WIDTH
         if layer == "VIA":
+            drill = entry[3] if len(entry) > 3 else 0.35   # 4th element = drill; pad is drill + 0.4
             v = pcbnew.PCB_VIA(board)
             v.SetPosition(pcbnew.VECTOR2I(mm(geom[0]), mm(geom[1])))
             v.SetViaType(pcbnew.VIATYPE_THROUGH)
             v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
-            v.SetDrill(mm(0.35))
+            v.SetDrill(mm(drill))
             try:
-                v.SetWidth(pcbnew.PADSTACK.ALL_LAYERS, mm(0.7))
+                v.SetWidth(pcbnew.PADSTACK.ALL_LAYERS, mm(drill + 0.4))
             except Exception:
-                v.SetWidth(mm(0.7))
+                v.SetWidth(mm(drill + 0.4))
             v.SetNetCode(netcodes[net])
             v.SetLocked(True)
             board.Add(v)

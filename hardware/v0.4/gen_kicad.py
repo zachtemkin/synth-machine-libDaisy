@@ -376,8 +376,8 @@ add("J16", "Connector_Generic:Conn_01x02", "Power switch (panel SPST) JST-XH", X
 add("JP2", "Jumper:SolderJumper_2_Open", "always on (bridges the power switch)",
     "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
     {"1": "SW_HI", "2": "BOOST_EN"}, sch=(24, 164, 0), pcb=(17.0, 40.0, 90))   # beside J16, room for an iron and the label
-add("R28", "Device:R", "10k", R_SMD, {"1": "VSYS", "2": "SW_HI"}, sch=(30, 164, 90), pcb=(124.5, 36.5, 0), lcsc="C17414")
-add("R27", "Device:R", "100k", R_SMD, {"1": "BOOST_EN", "2": "GND"}, sch=(36, 164, 90), pcb=(124.5, 39.0, 0), lcsc="C149504")
+add("R28", "Device:R", "10k", R_SMD, {"1": "VSYS", "2": "SW_HI"}, sch=(30, 164, 90), pcb=(124.0, 36.5, 0), lcsc="C17414")
+add("R27", "Device:R", "100k", R_SMD, {"1": "BOOST_EN", "2": "GND"}, sch=(36, 164, 90), pcb=(124.0, 39.0, 0), lcsc="C149504")
 # Boost: TPS61023, 1 uH, 10 uF in, 2 x 22 uF + C1 out, 750k/100k -> 5.1 V (VREF 0.6 V).  About
 # 1.5 A continuous at 5 V from a 3.3 V cell, more from USB's 4.4 V.  Inductor per TI's table;
 # XGL4030-102MEC (LCSC C6336766) is the stocked equivalent.
@@ -391,8 +391,8 @@ add("C23", "Device:C", "10u", C_SMD, {"1": "VSYS", "2": "GND"}, sch=(100, 160, 9
 C_1210 = "Capacitor_SMD:C_1210_3225Metric"
 add("C24", "Device:C", "22u 25V", C_1210, {"1": "+5V", "2": "GND"}, sch=(122, 150, 90), pcb=(137.5, 39.5, 270), lcsc="C52306", mpn="CL32A226KAJNNNE")
 add("C25", "Device:C", "22u 25V", C_1210, {"1": "+5V", "2": "GND"}, sch=(128, 150, 90), pcb=(137.5, 44.5, 270), lcsc="C52306", mpn="CL32A226KAJNNNE")
-add("R25", "Device:R", "750k (FB, 5.1V)", R_SMD, {"1": "+5V", "2": "BOOST_FB"}, sch=(122, 160, 90), pcb=(128.0, 39.0, 0), mpn="0805 1% 750k")
-add("R26", "Device:R", "100k", R_SMD, {"1": "BOOST_FB", "2": "GND"}, sch=(128, 160, 90), pcb=(128.0, 36.5, 0), lcsc="C149504")
+add("R25", "Device:R", "750k (FB, 5.1V)", R_SMD, {"1": "+5V", "2": "BOOST_FB"}, sch=(122, 160, 90), pcb=(129.0, 37.0, 270), mpn="0805 1% 750k")   # rot 270: pad 1 (+5V) on top, FB below
+add("R26", "Device:R", "100k", R_SMD, {"1": "BOOST_FB", "2": "GND"}, sch=(128, 160, 90), pcb=(127.0, 37.0, 270), lcsc="C149504")   # FB on top, GND below
 
 # --- Mounting holes ----------------------------------------------------------
 for i, (hx, hy) in enumerate([(5, 4), (155, 4), (5, 70), (155, 70)]):
@@ -416,36 +416,58 @@ PREROUTES = [
     ("AUDIO_R", "B.Cu", [("U1", "19"), (31.5, 49.36), (48.3, 49.36), (48.3, 20.5), (70.0, 20.5)]),
     ("AUDIO_R", "VIA", (70.0, 20.5)),
     ("AUDIO_R", "F.Cu", [(70.0, 20.5), ("C8", "1")]),
-    # MAX98306 right-side fan-out (pins top->bottom: 14 13 12 11 10 9 8): 0.2 mm stubs from the
-    # 0.4 mm pitch pads straight to the ferrite beads / decoupling caps on F.Cu.
-    ("SPK_LN", "F.Cu", [("U3", "14"), (U3X + 3.0, None), (U3X + 4.8, U3Y - 3.0), (U3X + 4.8, FB_ROWS["LN"]), ("FB1", "1")], 0.2),
-    ("SPK_LP", "F.Cu", [("U3", "13"), (U3X + 3.6, None), (U3X + 5.4, U3Y - 2.6), (U3X + 5.4, FB_ROWS["LP"]), ("FB2", "1")], 0.2),
-    ("+5V", "F.Cu", [("U3", "12"), ("C14", "1")], 0.2),
-    ("+5V", "F.Cu", [("U3", "11"), (U3X + 4.5, None), (U3X + 5.8, "C15:1"), ("C15", "1")], 0.2),
-    ("+5V", "F.Cu", [("C14", "1"), ("C15", "1")], 0.3),
+    # MAX98306 right-side fan-out (pins top->bottom: 14 13 12 11 10 9 8, 0.4 mm pitch): 0.2 mm
+    # necks off the pads while the four speaker lines run side by side, 0.4 mm once they have
+    # separated (each carries up to an amp of speaker current).
+    ("SPK_LN", "F.Cu", [("U3", "14"), (U3X + 3.0, None), (U3X + 4.8, U3Y - 3.0)], 0.2),
+    ("SPK_LN", "F.Cu", [(U3X + 4.8, U3Y - 3.0), (U3X + 4.8, FB_ROWS["LN"]), ("FB1", "1")], 0.4),
+    ("SPK_LP", "F.Cu", [("U3", "13"), (U3X + 3.6, None), (U3X + 5.4, U3Y - 2.6)], 0.2),
+    ("SPK_LP", "F.Cu", [(U3X + 5.4, U3Y - 2.6), (U3X + 5.4, FB_ROWS["LP"]), ("FB2", "1")], 0.4),
+    # PVDD pins 12 and 11: two 0.2 mm necks joined right off the pads, then one 0.5 mm feed to
+    # the decoupling caps.  The amp's whole supply current comes through here.
+    ("+5V", "F.Cu", [("U3", "12"), (U3X + 2.3, None)], 0.2),
+    ("+5V", "F.Cu", [("U3", "11"), (U3X + 2.3, None)], 0.2),
+    ("+5V", "F.Cu", [(U3X + 2.3, "U3:12"), (U3X + 2.3, "U3:11")], 0.2),
+    ("+5V", "F.Cu", [(U3X + 2.3, U3Y - 0.2), (U3X + 7.0, U3Y - 0.2), ("C14", "1")], 0.5),
+    ("+5V", "F.Cu", [("C14", "1"), ("C15", "1")], 0.5),
     # the decoupling-cap +5V island is boxed in by the speaker stubs; give the autorouter a
-    # 0.5 mm exit to the open area right of the caps
+    # 0.5 mm exit to the open area right of the caps, with a Power-class via
     ("+5V", "F.Cu", [("C14", "1"), (None, U3Y - 2.4), (70.5, U3Y - 2.4)], 0.5),
-    ("+5V", "VIA", (70.5, U3Y - 2.4)),      # ...and a via so the feed can arrive on B.Cu
-    ("SPK_RP", "F.Cu", [("U3", "10"), (U3X + 3.6, None), (U3X + 5.4, U3Y + 2.6), (U3X + 5.4, FB_ROWS["RP"]), ("FB3", "1")], 0.2),
-    ("SPK_RN", "F.Cu", [("U3", "9"), (U3X + 3.0, None), (U3X + 4.8, U3Y + 3.0), (U3X + 4.8, FB_ROWS["RN"]), ("FB4", "1")], 0.2),
+    ("+5V", "VIA", (70.5, U3Y - 2.4), 0.5),   # ...and a 0.5 mm via so the feed can arrive on B.Cu
+    ("SPK_RP", "F.Cu", [("U3", "10"), (U3X + 3.6, None), (U3X + 5.4, U3Y + 2.6)], 0.2),
+    ("SPK_RP", "F.Cu", [(U3X + 5.4, U3Y + 2.6), (U3X + 5.4, FB_ROWS["RP"]), ("FB3", "1")], 0.4),
+    ("SPK_RN", "F.Cu", [("U3", "9"), (U3X + 3.0, None), (U3X + 4.8, U3Y + 3.0)], 0.2),
+    ("SPK_RN", "F.Cu", [(U3X + 4.8, U3Y + 3.0), (U3X + 4.8, FB_ROWS["RN"]), ("FB4", "1")], 0.4),
     ("GND", "F.Cu", [("U3", "8"), (None, U3Y + 2.4), (U3X, U3Y + 2.4), (U3X, U3Y + 1.0)], 0.2),   # into the exposed pad
-    # TPS61023 (SOT-563, 0.5 mm pitch): 0.25 mm stubs off the power pins, because the 0.6 mm
-    # Power-class tracks cannot land on 0.3 mm pads.  Pins 1-3 left (FB, EN, VIN), 4-6 right
-    # (GND, SW, VOUT); the router picks the stubs up from their far ends.
-    ("VSYS", "F.Cu", [("U6", "3"), (128.2, None), ("C23", "1")], 0.25),          # VIN -> input cap (top pad)
-    ("VSYS", "F.Cu", [("C23", "1"), (131.3, "C23:1"), ("L1", "1")], 0.4),         # input cap -> inductor (L1 pad 1 x)
-    ("BOOST_SW", "F.Cu", [("U6", "5"), (134.6, None)], 0.25),                    # thin off the 0.35 mm pad
-    ("BOOST_SW", "F.Cu", [(134.6, 40.0), (134.6, 43.6), (133.7, 43.6), ("L1", "2")], 0.4),
-    ("+5V", "F.Cu", [("U6", "6"), (136.0, None), (136.0, "C24:1"), ("C24", "1")], 0.25),   # VOUT -> output cap (top pad)
-    ("GND", "F.Cu", [("U6", "4"), (None, 42.4)], 0.25),
+    # TPS61023 (SOT-563, 0.5 mm pitch, 0.35 mm pads): 0.3 mm necks no longer than the pitch
+    # forces, then 0.6 mm.  Pins 1-3 left (FB, EN, VIN), 4-6 right (GND, SW, VOUT), rows at
+    # y = 39.5 / 40.0 / 40.5.  These few millimetres carry the whole battery current, so every
+    # segment is as wide as the neighbouring pads allow and the caps sit right at the pins.
+    ("VSYS", "F.Cu", [("U6", "3"), (130.1, None)], 0.3),                                     # VIN neck, leftwards
+    ("VSYS", "F.Cu", [(130.1, 40.5), (128.2, 40.5), ("C23", "1")], 0.6),                       # -> input cap (top pad)
+    ("VSYS", "F.Cu", [("C23", "1"), (131.3, "C23:1"), ("L1", "1")], 0.6),                     # input cap -> inductor
+    ("BOOST_SW", "F.Cu", [("U6", "5"), (133.9, None), (133.9, 40.6)], 0.3),                  # SW neck: right, then down past the GND row
+    ("BOOST_SW", "F.Cu", [(133.9, 40.6), (133.9, 45.5)], 0.6),                                # straight down into L1 pad 2
+    ("+5V", "F.Cu", [("U6", "6"), (133.9, None), (133.9, 38.6)], 0.3),                       # VOUT neck: right, then up away from SW
+    ("+5V", "F.Cu", [(133.9, 38.6), (136.0, 38.6), (136.0, "C24:1"), ("C24", "1")], 0.6),      # -> output cap (top pad)
+    ("GND", "F.Cu", [("U6", "4"), (None, 41.6)], 0.3),                                       # GND neck down ...
+    ("GND", "F.Cu", [(133.14, 41.6), (133.14, 42.8)], 0.5),                                   # ... into the pour
     ("+5V", "F.Cu", [("C24", "1"), (139.6, "C24:1"), (139.6, "C25:1"), ("C25", "1")], 0.6),   # both output caps, around C24's GND pad
-    ("VSYS", "F.Cu", [("R28", "1"), (122.3, None), (122.3, 40.95), (128.2, 40.95)], 0.4),      # switch pull-up -> boost input, under R27/R25
+    ("VSYS", "F.Cu", [("R28", "1"), (121.8, None), (121.8, 40.5), (128.2, 40.5)], 0.4),        # switch pull-up -> boost input, left of R27, under R25
     ("VSYS", "F.Cu", [("U5", "11"), (116.25, None)], 0.2),                                       # charger OUT (0.5 mm pitch) ...
-    ("VSYS", "F.Cu", [(116.25, "U5:11"), (116.25, 36.5), (122.3, 36.5)], 0.4),                  # ... down between the resistor rows to R28
+    ("VSYS", "F.Cu", [(116.25, "U5:11"), (116.25, 36.5), (121.8, 36.5)], 0.4),                  # ... down between the resistor rows to R28
     ("VSYS", "F.Cu", [("U5", "5"), (None, 27.5)], 0.2),                                          # EN2 (bottom row) = VSYS: stub down ...
-    ("+5V", "F.Cu", [("R25", "1"), (128.0, None), (128.0, 34.5), (136.0, 34.5), (136.0, 37.9)], 0.25),   # FB divider top -> +5V, threading between R25/R26 pads
-    ("+5V", "F.Cu", [(136.0, 34.5), (136.0, 13.5), (131.08, 13.5), ("J9", "3")], 0.6),                  # +5V trunk from the boost up to the display header
+    ("+5V", "F.Cu", [("R25", "1"), (None, 34.5), (136.0, 34.5)], 0.25),                                 # FB divider top -> the +5V trunk
+    # +5V trunk westward, hand-routed because the 0.6 mm class has to thread between the top-edge
+    # parts and the router gave up on it: J9 -> below the EXP header -> down the gap between the
+    # headphone amp and the speaker connectors -> between J5 and J6 -> the amp's supply via.
+    # A via at x = 90 drops a branch to B.Cu that runs under the jack's pads (which end at y 16.8)
+    # and above the audio lines (y 19.4 / 20.5) to C1, the bulk cap next to the Seed's VIN pin.
+    ("+5V", "F.Cu", [(131.08, 13.5), (90.0, 13.5), (90.0, 46.5), (70.5, 46.5), (70.5, U3Y - 2.4)], 0.6),
+    ("+5V", "VIA", (90.0, 13.5), 0.5),
+    ("+5V", "F.Cu", [("J8", "11"), (None, 13.5)], 0.6),                                       # EXP header's 5V pin drops onto the trunk
+    ("+5V", "B.Cu", [(90.0, 13.5), (90.0, 18.3), (54.0, 18.3), ("C1", "1")], 0.6),
+    ("+5V", "F.Cu", [("C24", "1"), (136.0, "C24:1"), (136.0, 13.5), (131.08, 13.5), ("J9", "3")], 0.6),   # +5V trunk from the output cap up to the display header
     ("VSYS", "F.Cu", [(112.25, 27.5), (116.25, 27.5)], 0.4),                                     # ... and across to the same rail
     # GND stitching vias in open areas, so the two pours stay one net wherever the
     # autorouter's GND tracks leave a front-side island
