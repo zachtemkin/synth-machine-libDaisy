@@ -375,7 +375,7 @@ add("J16", "Connector_Generic:Conn_01x02", "Power switch (panel SPST) JST-XH", X
     {"1": "SW_HI", "2": "BOOST_EN"}, sch=(16, 160, 0), pcb=(5.5, 40.0, 90), mpn=XH2_MPN)   # left edge, mid-height, like the panel switch
 add("JP2", "Jumper:SolderJumper_2_Open", "always on (bridges the power switch)",
     "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
-    {"1": "SW_HI", "2": "BOOST_EN"}, sch=(24, 164, 0), pcb=(13.0, 40.0, 90))   # beside J16, room for an iron
+    {"1": "SW_HI", "2": "BOOST_EN"}, sch=(24, 164, 0), pcb=(17.0, 40.0, 90))   # beside J16, room for an iron and the label
 add("R28", "Device:R", "10k", R_SMD, {"1": "VSYS", "2": "SW_HI"}, sch=(30, 164, 90), pcb=(124.5, 36.5, 0), lcsc="C17414")
 add("R27", "Device:R", "100k", R_SMD, {"1": "BOOST_EN", "2": "GND"}, sch=(36, 164, 90), pcb=(124.5, 39.0, 0), lcsc="C149504")
 # Boost: TPS61023, 1 uH, 10 uF in, 2 x 22 uF + C1 out, 750k/100k -> 5.1 V (VREF 0.6 V).  About
