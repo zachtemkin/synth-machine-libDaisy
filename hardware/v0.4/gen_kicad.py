@@ -244,7 +244,7 @@ add("R13", "Device:R", "100k", R_SMD, {"1": "AMP_GAIN", "2": "+5V"}, sch=(134, 1
 add("R14", "Device:R", "100k", R_SMD, {"1": "AMP_SD", "2": "+5V"}, sch=(140, 106, 90), pcb=(63.0, U3Y + 6.0, 0), lcsc="C149504")
 add("JP1", "Jumper:SolderJumper_3_Open", "GAIN: 1-2 = 18dB, open = R13, 2-3 = 12dB",
     "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm",
-    {"1": "GND", "2": "AMP_GAIN", "3": "+5V"}, sch=(128, 112, 0), pcb=(66.0, 57.0, 0))   # in the channel above the key diodes
+    {"1": "GND", "2": "AMP_GAIN", "3": "+5V"}, sch=(128, 112, 0), pcb=(95.0, 44.0, 90))   # open area right of the speaker connectors, room for an iron
 # Speaker outputs -> 0805 ferrite bead + 220p EMI filter (MAX98306 datasheet) -> JST-PH plugs.
 # Bead rows top->bottom follow the hand-routed fan-out below: LN, LP, RP, RN.
 FB_FP = "Inductor_SMD:L_0805_2012Metric"
@@ -994,7 +994,7 @@ def write_pcb(root_uuid):
     text("SPK L", 85, U3Y - 8.0, 0.9)
     text("SPK R", 85, U3Y + 8.0, 0.9)
     text("AMP", U3X, U3Y - 5.0, 0.9)
-    text("GAIN", 70.5, 57.0, 0.8)
+    text("GAIN", 97.8, 44.0, 0.8, angle=90)
     text("HP AMP", 83, 25.0, 0.9)
     text("EXP", 93, 7.2, 0.9)
     text("DISP", 126, 7.2, 0.9)
