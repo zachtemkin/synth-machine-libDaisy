@@ -344,12 +344,12 @@ add("R17", "Device:R", "4k7 (DNP)", R_SMD, {"1": "+3V3P", "2": "I2C_SCL"}, sch=(
 # is 0.55 W; the tab is GND and sits on the pour.  KiCad's AP7361C symbol is an alias of the
 # SPX2920 one (1 IN, 2 GND tab, 3 OUT), which is the AP7361C SOT223 pinout per its datasheet.
 add("U7", "Regulator_Linear:SPX2920M3-3.3_SOT223", "AP7361C-33E-13", "Package_TO_SOT_SMD:SOT-223-3_TabPin2",
-    {"1": "+5V", "2": "GND", "3": "+3V3P"}, sch=(150, 156, 0), pcb=(141.0, 20.0, 0), lcsc="C500795", mpn="AP7361C-33E-13",
+    {"1": "+5V", "2": "GND", "3": "+3V3P"}, sch=(150, 156, 0), pcb=(141.0, 21.5, 0), lcsc="C500795", mpn="AP7361C-33E-13",
     desc="Diodes AP7361C 1 A low-dropout regulator, 3.3 V, SOT-223")
 # SOT-223-3_TabPin2 at rot 0: pins 1/2/3 stacked at x = 137.85 (y 17.7 / 20.0 / 22.3), tab
 # (GND) on the right.  Input cap above pin 1, output cap below pin 3.
 add("C27", "Device:C", "10u", C_SMD, {"1": "+5V", "2": "GND"}, sch=(140, 160, 90), pcb=(138.0, 15.2, 0), lcsc="C15850")
-add("C28", "Device:C", "10u", C_SMD, {"1": "+3V3P", "2": "GND"}, sch=(160, 160, 90), pcb=(138.0, 25.5, 0), lcsc="C15850")
+add("C28", "Device:C", "10u", C_SMD, {"1": "+3V3P", "2": "GND"}, sch=(160, 160, 90), pcb=(138.0, 27.5, 0), lcsc="C15850")
 
 # --- Battery: BQ24074 charger with power path, TPS61023 5 V boost --------------------------
 # VBUS -> F1 -> VUSB -> U5 IN.  U5 OUT (VSYS) is 4.4 V regulated while USB is present and the
@@ -999,7 +999,7 @@ def write_pcb(root_uuid):
     text("EXP", 93, 7.2, 0.9)
     text("DISP", 126, 7.2, 0.9)
     text("I2C ENC", 150.0, 24.0, 0.8)
-    text("3V3P", 141.5, 28.8, 0.8)
+    text("3V3P", 141.5, 30.5, 0.8)
     text("ESD", 17.5, 17.0, 0.8)
 
     # GND pours (unfilled; press B in pcbnew)
