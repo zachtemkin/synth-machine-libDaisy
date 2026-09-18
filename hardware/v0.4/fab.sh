@@ -21,8 +21,9 @@ rm -rf "$OUT"; mkdir -p "$GERB"
 "$CLI" pcb export pos --format csv --units mm --side both -o "$OUT/synth_machine_pos.csv" "$HERE/synth_machine.kicad_pcb"
 "$CLI" sch export bom --fields "Reference,Value,Footprint,QUANTITY,LCSC,MPN" --labels "Refs,Value,Footprint,Qty,LCSC,MPN" \
   --group-by "Value,Footprint,LCSC,MPN" --ref-range-delimiter "" --exclude-dnp -o "$OUT/synth_machine_bom.csv" "$HERE/synth_machine.kicad_sch"
-# JLCPCB SMT assembly files: BOM (only parts with an LCSC number) and CPL (SMD footprints, top side)
-"$CLI" pcb export pos --format csv --units mm --side front --smd-only -o "$OUT/_smd_pos.csv" "$HERE/synth_machine.kicad_pcb"
+# JLCPCB assembly files: BOM (only parts with an LCSC number) and CPL (every such part on the top
+# side, through-hole included: the JST headers and sockets are placed on the standard tier)
+"$CLI" pcb export pos --format csv --units mm --side front -o "$OUT/_smd_pos.csv" "$HERE/synth_machine.kicad_pcb"
 python3 - "$OUT" <<'PYEOF'
 import csv, sys, os
 out = sys.argv[1]

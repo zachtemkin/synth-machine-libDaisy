@@ -163,6 +163,7 @@ KEYS = [
 XH2_FP = "Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical"
 XH3_FP = "Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical"
 XH2_MPN, XH3_MPN = "B2B-XH-A(LF)(SN)", "B3B-XH-A(LF)(SN)"
+XH2_LCSC, XH3_LCSC, PH2_LCSC = "C158012", "C144394", "C131337"   # JST originals at LCSC, so JLCPCB can place them (standard assembly)
 DIODE_FP = "Diode_SMD:D_SOD-123"
 KEY_X0, KEY_PITCH, KEY_Y = 16.0, 7.0, 69.5     # header pin 1, rot 90 (pins run up), pin 2 at KEY_Y - 2.5
 KEY_DIODE_Y, KEY_LABEL_Y = 61.5, 73.2          # diode above the header, name below it
@@ -176,12 +177,12 @@ for i, (name, mat) in enumerate(KEYS):
     sx, sy = 78 + col_i * 20, 8 + row * 8
     if mat is None:
         add("K%d" % (i + 1), "Connector_Generic:Conn_01x02", "KEY %s (direct D10) JST-XH" % name, XH2_FP,
-            {"1": "KEY_C4", "2": "GND"}, sch=(sx, sy, 0), pcb=(hx, hy, hrot), mpn=XH2_MPN)
+            {"1": "KEY_C4", "2": "GND"}, sch=(sx, sy, 0), pcb=(hx, hy, hrot), mpn=XH2_MPN, lcsc=XH2_LCSC)
     else:
         c, r = mat
         mid = "K%s_D" % name.replace("#", "s")
         add("K%d" % (i + 1), "Connector_Generic:Conn_01x02", "%s [c%d r%d] JST-XH" % (name, c, r), XH2_FP,
-            {"1": "ROW%d" % r, "2": mid}, sch=(sx, sy, 0), pcb=(hx, hy, hrot), mpn=XH2_MPN)
+            {"1": "ROW%d" % r, "2": mid}, sch=(sx, sy, 0), pcb=(hx, hy, hrot), mpn=XH2_MPN, lcsc=XH2_LCSC)
         add("D%d" % dn, "Device:D", "1N4148W", DIODE_FP,
             {"2": mid, "1": "COL%d" % c}, sch=(sx + 6, sy, 180), pcb=(dx, dy, drot), lcsc="C81598")
         dn += 1
@@ -193,7 +194,7 @@ POTS = [("J10", "POT_VOL", "VOL")]
 POT_X, POT_Y0, POT_PITCH = 5.5, 16.0, 8.5        # left edge, up by the USB-C, where the pot sits on the panel
 for i, (ref, net, label) in enumerate(POTS):
     add(ref, "Connector_Generic:Conn_01x03", "Pot %s (10k lin, panel) JST-XH" % label, XH3_FP,
-        {"1": "+3.3VA", "2": net, "3": "GND"}, sch=(78 + i * 12, 36, 0), pcb=(POT_X, POT_Y0 + i * POT_PITCH, 90), mpn=XH3_MPN)
+        {"1": "+3.3VA", "2": net, "3": "GND"}, sch=(78 + i * 12, 36, 0), pcb=(POT_X, POT_Y0 + i * POT_PITCH, 90), mpn=XH3_MPN, lcsc=XH3_LCSC)
 
 # --- USB-C: MIDI data on D29/D30 (libDaisy EXTERNAL) and the charger's input ---------
 # HRO TYPE-C-31-M-12: a JLCPCB basic part with the GCT USB4105's land pattern (same shell holes
@@ -259,9 +260,9 @@ for i, sig in enumerate(["LN", "LP", "RP", "RN"]):
         {"1": "SPKF_" + sig, "2": "GND"}, sch=(150 + i * 8, 106, 0), pcb=(78.0, FB_ROWS[sig], 0), lcsc="C53172")
 JST_FP = "Connector_JST:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical"
 add("J5", "Connector_Generic:Conn_01x02", "Speaker L (JST-PH)", JST_FP,
-    {"1": "SPKF_LP", "2": "SPKF_LN"}, sch=(190, 96, 0), pcb=(85.0, U3Y - 4.0, 0), mpn="B2B-PH-K-S(LF)(SN)")
+    {"1": "SPKF_LP", "2": "SPKF_LN"}, sch=(190, 96, 0), pcb=(85.0, U3Y - 4.0, 0), mpn="B2B-PH-K-S(LF)(SN)", lcsc=PH2_LCSC)
 add("J6", "Connector_Generic:Conn_01x02", "Speaker R (JST-PH)", JST_FP,
-    {"1": "SPKF_RP", "2": "SPKF_RN"}, sch=(190, 106, 0), pcb=(85.0, U3Y + 4.0, 0), mpn="B2B-PH-K-S(LF)(SN)")
+    {"1": "SPKF_RP", "2": "SPKF_RN"}, sch=(190, 106, 0), pcb=(85.0, U3Y + 4.0, 0), mpn="B2B-PH-K-S(LF)(SN)", lcsc=PH2_LCSC)
 
 # --- Headphone jack on the top edge, plug detect mutes the speaker amp ----------------------
 # Tip/ring from U2.  TN is shorted to T while nothing is plugged in, so HP_DET sits at ~0 V
@@ -365,7 +366,7 @@ add("C28", "Device:C", "10u", C_SMD, {"1": "+3V3P", "2": "GND"}, sch=(160, 160, 
 # CE low -> charging enabled; TS 10k to VSS (no pack thermistor).  ~CHG and ~PGOOD are open
 # drain, pulled up to 3V3, read by A5 / A11.  Use a protected cell (Adafruit/SparkFun LiPos).
 add("J17", "Connector_Generic:Conn_01x02", "Battery 1S LiPo (JST-PH, 1 = +)", JST_FP,
-    {"1": "VBAT", "2": "GND"}, sch=(16, 152, 0), pcb=(100.0, 22.0, 0), mpn="B2B-PH-K-S(LF)(SN)")
+    {"1": "VBAT", "2": "GND"}, sch=(16, 152, 0), pcb=(100.0, 22.0, 0), mpn="B2B-PH-K-S(LF)(SN)", lcsc=PH2_LCSC)
 add("U5", "Battery_Management:BQ24074RGT", "BQ24074RGTR",
     "Package_DFN_QFN:VQFN-16-1EP_3x3mm_P0.5mm_EP1.6x1.6mm_ThermalVias",
     {"1": "TS", "2": "VBAT", "3": "VBAT", "4": "GND", "5": "VSYS", "6": "GND", "7": "USB_PGOOD", "8": "GND",
@@ -389,7 +390,7 @@ add("C26", "Device:C", "100n", C_SMD, {"1": "VBAT_SENSE", "2": "GND"}, sch=(96, 
 # keeps charging with the switch off, and the boost's EN pin draws nothing, so any small switch
 # will do.
 add("J16", "Connector_Generic:Conn_01x02", "Power switch (panel SPST) JST-XH", XH2_FP,
-    {"1": "SW_HI", "2": "BOOST_EN"}, sch=(16, 160, 0), pcb=(5.5, 40.0, 90), mpn=XH2_MPN)   # left edge, mid-height, like the panel switch
+    {"1": "SW_HI", "2": "BOOST_EN"}, sch=(16, 160, 0), pcb=(5.5, 40.0, 90), mpn=XH2_MPN, lcsc=XH2_LCSC)   # left edge, mid-height, like the panel switch
 add("JP2", "Jumper:SolderJumper_2_Open", "always on (bridges the power switch)",
     "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
     {"1": "SW_HI", "2": "BOOST_EN"}, sch=(24, 164, 0), pcb=(17.0, 40.0, 90))   # beside J16, room for an iron and the label
