@@ -6,7 +6,7 @@ S7018-ND,PPTC201LFBN-RC,4,U1 sockets x2,"1x20 female header, 2 per Seed"
 PPTC081LFBN-RC,PPTC081LFBN-RC,3,J9 x2 + spare,"1x8 female socket for the display header"
 PPTC121LFBN-RC,PPTC121LFBN-RC,3,J8 x2 + spare,"1x12 female socket for the expansion header"
 CP1-3515N-ND,SJ1-3515N,3,J7 x2 + spare,CUI 3.5mm switched stereo jack
-2073-USB4105-GF-ACT-ND,USB4105-GF-A,3,J1 x2 + spare,"GCT USB-C 2.0 receptacle, 16-pin; skip if PCBWay places it"
+,TYPE-C-31-M-12,0,J1,"HRO USB-C 16-pin receptacle, LCSC C165948 (JLCPCB basic part); placed by the assembler, not a Digi-Key line"
 P124219-ND,EEU-FR1A471,3,C1 x2 + spare,"Panasonic 470uF 10V radial 8mm, 3.5mm pitch"
 PDB181-E420K-103B-ND,PDB181-E420K-103B,3,volume pot x2 + spare,"Bourns 16mm 10k linear pot, solder lugs"
 ,,8,encoders x2 boards,"Adafruit 4991 I2C QT rotary encoder breakout, 4 per board, with STEMMA QT cables; set a different address on each"

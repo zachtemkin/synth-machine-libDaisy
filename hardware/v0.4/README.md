@@ -19,6 +19,7 @@ still share the top edge.
 | Display header | J9: GND, 3V3, 5V, SCK (A7), MOSI (A3), NSS (A8), D/C (D26), RST (D27) | Hardware SPI1 for an OLED or a Sharp memory LCD. |
 | Encoders instead of bank pots | J11..J14 removed; only J10 (volume) remains | The four bank controls are seesaw rotary encoders on J15. Their old ADC pins go to the expansion header. |
 | USB ESD, SMD fuse | U4 USBLC6-2SC6, F1 1812 PTC on the USB input | Data lines were unprotected; the radial fuse collided with the Seed. |
+| USB-C receptacle | J1 is the HRO TYPE-C-31-M-12 (LCSC C165948) | Same land pattern and body depth as v0.3's GCT USB4105, which went out of stock. A JLCPCB basic part. |
 | Peripheral 3.3 V rail | U7 AP7361C-33 (SOT-223, 1 A) from +5V, C27/C28 | Feeds the encoders, the display and the expansion header's 3V3 pin, so the Seed's regulator carries only the Seed, the headphone amp and pull-ups. |
 | Assembly-ready BOM | every part has an MPN or LCSC number | `fab.sh` writes `pcbway_bom.csv` / `pcbway_cpl.csv`. |
 

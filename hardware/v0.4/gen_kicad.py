@@ -196,13 +196,16 @@ for i, (ref, net, label) in enumerate(POTS):
         {"1": "+3.3VA", "2": net, "3": "GND"}, sch=(78 + i * 12, 36, 0), pcb=(POT_X, POT_Y0 + i * POT_PITCH, 90), mpn=XH3_MPN)
 
 # --- USB-C: MIDI data on D29/D30 (libDaisy EXTERNAL) and the charger's input ---------
+# HRO TYPE-C-31-M-12: a JLCPCB basic part with the GCT USB4105's land pattern (same shell holes
+# and pad pitch, pad row 0.36 mm further in) and body depth, so it sits on the edge the same way.
+# The GCT part (v0.3) went out of stock at LCSC in September 2026.
 add("J1", "Connector:USB_C_Receptacle_USB2.0_16P", "USB-C (MIDI + 5V power)",
-    "Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal",
+    "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12",
     {"S1": "GND", "SH": "GND", "A1": "GND", "A12": "GND", "B1": "GND", "B12": "GND",   # shield pad is S1 (KiCad 9 lib) or SH (KiCad 10)
      "A4": "VBUS", "A9": "VBUS", "B4": "VBUS", "B9": "VBUS",
      "A5": "CC1", "B5": "CC2", "A6": "USB_DP", "B6": "USB_DP", "A7": "USB_DM", "B7": "USB_DM",
      "A8": None, "B8": None},
-    sch=(20, 100, 0), pcb=(16.0, 3.675, 180), mpn="USB4105-GF-A", lcsc="C3020560")   # footprint "PCB Edge" line lands on y=0
+    sch=(20, 100, 0), pcb=(16.0, 3.675, 180), mpn="TYPE-C-31-M-12", lcsc="C165948")   # body front face on the board edge
 # ESD on the data pair: USBLC6-2SC6 (SOT-23-6) right behind the receptacle.  Both I/O pins of
 # each pair carry the same net, so it sits on the lines rather than in series with them.
 add("U4", "Power_Protection:USBLC6-2P6", "USBLC6-2SC6", "Package_TO_SOT_SMD:SOT-23-6",
@@ -217,7 +220,7 @@ add("R2", "Device:R", "5k1", R_SMD, {"1": "CC2", "2": "GND"}, sch=(46, 96, 0), p
 # SMD PTC on the USB input (the v0.3 radial MF-R250 collided with the Seed socket).  VUSB is
 # the charger's input; the +5V rail is made by the boost converter further down.
 add("F1", "Device:Polyfuse", "MF-MSMF250/16X-2 2.5A PTC", "Fuse:Fuse_1812_4532Metric",
-    {"1": "VBUS", "2": "VUSB"}, sch=(60, 100, 0), pcb=(23.0, 11.5, 90), lcsc="C210838", mpn="MF-MSMF250/16X-2")
+    {"1": "VBUS", "2": "VUSB"}, sch=(60, 100, 0), pcb=(24.5, 12.0, 90), lcsc="C210838", mpn="MF-MSMF250/16X-2")
 # Bulk on the +5V rail next to the Seed VIN pin, for the amp's peaks
 add("C1", "Device:C_Polarized", "470u 10V", "Capacitor_THT:CP_Radial_D8.0mm_P3.50mm",
     {"1": "+5V", "2": "GND"}, sch=(90, 100, 0), pcb=(54.0, 12.0, 0), mpn="EEU-FR1A471")
