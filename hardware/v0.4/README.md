@@ -127,8 +127,18 @@ quantity, manufacturer part number, LCSC number, value, package and whether it
 is SMD or through-hole. `fab/pcbway_cpl.csv` has both sides. Upload the
 Gerber zip, the BOM and the CPL; on the quote, tick at least J1 (USB-C), the
 19 K headers, J10, J5/J6, J16, J17 and J15 for placement. The Seed
-sockets, C1 and the jack can go in the same job or be hand-fitted. The
-JLCPCB files are still produced too, for the SMD-only economic route.
+sockets, C1 and the jack can go in the same job or be hand-fitted.
+
+## Ordering with assembly (JLCPCB)
+
+`fab/jlcpcb_bom.csv` and `fab/jlcpcb_cpl.csv` carry every part with an LCSC
+number, which is all of the SMD parts and the JST connectors: the 19 key
+headers, the volume and switch headers (JST XH originals, C158012 /
+C144394) and the speaker and battery sockets (JST PH, C131337). Choose
+**standard** assembly, not economic: economic is SMD-only and drops the
+through-hole connectors. Still hand-fitted afterwards: the two Seed sockets,
+the two expansion/display sockets, the headphone jack and C1, which are on
+the Digi-Key list. The DNP pull-ups are excluded automatically.
 
 ## Design review notes (v0.4 quality pass)
 
